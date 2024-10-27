@@ -49,7 +49,7 @@ A_j, A_m = RAN_topo.get_node_cap(G)
 gain = wireless.channel_gain(distances_RU_UE, num_RUs, num_UEs, num_RBs, noise_power_watts, num_antennas, path_loss_ref, path_loss_exp)
 
 # Tính phân bổ công suất
-P_bi_sk = wireless.allocate_power(num_RUs, num_UEs, num_RBs, max_tx_power_watts, gain, user_requests)
+P_bi_sk = wireless.allocate_power(num_RUs, num_UEs, num_RBs, max_tx_power_watts)
 
 # Solve tối ưu hóa ngắn hạn
 pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk = solving.optimize(num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, max_tx_power_watts, rb_bandwidth, D_j, D_m, R_min, gain, P_bi_sk, A_j, A_m, l_ru_du, l_du_cu, epsilon)
@@ -80,15 +80,31 @@ if pi_sk is not None:
         l_du_cu=l_du_cu,
         epsilon=epsilon
     )
+
     
     # In kết quả kiểm tra tính khả thi
     print("\nFeasibility Check Report (Ngắn hạn):")
     for key, is_feasible in feasibility_report.items():
         print(f"{key}: {'Đúng' if is_feasible else 'Sai'}")
+        if "Ràng buộc 15i" in key:
+        # Lấy thông tin RU và UE từ tên ràng buộc
+            _,_,_,_,_,ru,_,ue ,_,rb = key.split()
+            ru = int(ru.replace(",", ""))
+            ue = int(ue.replace(",", ""))
+            rb = int(rb.replace(",", ""))
+            # In giá trị của các biến z_bi_sk và phi_i_sk tương ứng
+            print(f"  Giá trị phi_i_sk[{ru}, {ue}]: {phi_i_sk[ru, ue].value}")
+            print("  Giá trị z_bi_sk theo RBs:")
+            print(f"    z_bi_sk[{ru}, {ue}, {rb}]: {z_bi_sk[(ru, ue, rb)].value}")
         
-    print("\nGiá trị z_bi_sk:")
-    for key, var in z_bi_sk.items():
-        print(f"z_bi_sk[{key}] = {var.value}")
+
+
+
+
+
+    # print("\nGiá trị z_bi_sk:")
+    # for key, var in z_bi_sk.items():
+    #     print(f"z_bi_sk[{key}] = {var.value}")
 
 # Solve tối ưu hóa dài hạn
 pi_long_term, phi_i_long_term, phi_j_long_term, phi_m_long_term = solving.long_term_optimization(
@@ -109,13 +125,13 @@ pi_long_term, phi_i_long_term, phi_j_long_term, phi_m_long_term = solving.long_t
 )
 
 # In kết quả tối ưu hóa dài hạn
-if pi_long_term is not None:
-    print("\nKết quả tối ưu hóa dài hạn:")
-    print(f"pi_long_term: {pi_long_term.value}")
-    print(f"phi_i_long_term: {phi_i_long_term.value}")
-    print(f"phi_j_long_term: {phi_j_long_term.value}")
-    print(f"phi_m_long_term: {phi_m_long_term.value}")
-    
+# if pi_long_term is not None:
+#     print("\nKết quả tối ưu hóa dài hạn:")
+#     print(f"pi_long_term: {pi_long_term.value}")
+#     print(f"phi_i_long_term: {phi_i_long_term.value}")
+#     print(f"phi_j_long_term: {phi_j_long_term.value}")
+#     print(f"phi_m_long_term: {phi_m_long_term.value}")
+print (f"phi_i_sk: {phi_i_long_term[2,0].value}")
 
 # Ghi pi_sk ra file CSV (nếu pi_sk là một dictionary)
 with open('pi_sk.csv', mode='w', newline='') as file:
@@ -128,7 +144,7 @@ with open('pi_sk.csv', mode='w', newline='') as file:
 # Ghi z_bi_sk ra file CSV (nếu z_bi_sk là một dictionary)
 with open('z_bi_sk.csv', mode='w', newline='') as file:
     writer = csv.writer(file)
-    writer.writerow(["(RU, UE, RB)", "Value"])
+    writer.writerow(["RU", "UE","RB","Value"])
     for i in range(num_RUs):
         for k in range(num_UEs):
             for b in range(num_RBs):  # z_bi_sk là dictionary
@@ -162,4 +178,4 @@ with open('phi_m_sk.csv', mode='w', newline='') as file:
                 writer.writerow([cu, ue, phi_m_sk.value[cu, ue]])
             
 # Show kết quả ánh xạ (benchmark)
-benchmark.print_mapping(pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk)
+# benchmark.print_mapping(pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk)

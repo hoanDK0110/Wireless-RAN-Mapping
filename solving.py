@@ -42,12 +42,22 @@ def check_feasibility(pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, num_UEs, num
             feasibility_report[f"Ràng buộc 15f-15g-15h cho UE {k}"] = (f_constraint and g_constraint and h_constraint)
 
         # Kiểm tra ràng buộc (15i)
+        # for i in range(num_RUs):
+        #     for k in range(num_UEs):
+        #         for b in range(num_RBs):
+        #             i_constraint_1 = (cp.sum([z_bi_sk[(i, k, b)].value for b in range(num_RBs)])/num_RBs <= phi_i_sk[i, k].value)
+        #             i_constraint_2 = (phi_i_sk[i, k].value <= cp.sum([z_bi_sk[(i, k, b)].value for b in range(num_RBs)])/num_RBs + (1 - epsilon))
+        #             feasibility_report[f"Ràng buộc 15i cho RU {i}, UE {k}, RB {b}"] = (i_constraint_1 and i_constraint_2)
+
         for i in range(num_RUs):
             for k in range(num_UEs):
+                sum_z_bi_sk_value = 0
                 for b in range(num_RBs):
-                    i_constraint_1 = (cp.sum([z_bi_sk[(i, k, b)].value for b in range(num_RBs)])/num_RBs <= phi_i_sk[i, k].value)
-                    i_constraint_2 = (phi_i_sk[i, k].value <= cp.sum([z_bi_sk[(i, k, b)].value for b in range(num_RBs)])/num_RBs + (1 - epsilon))
-                    feasibility_report[f"Ràng buộc 15i cho RU {i}, UE {k}, RB {b}"] = (i_constraint_1 and i_constraint_2)
+                    sum_z_bi_sk_value += z_bi_sk[(i, k, b)].value
+                sum_z_bi_sk_value = sum_z_bi_sk_value / num_RBs
+                i_constraint_1 = (sum_z_bi_sk_value <= phi_i_sk[i, k].value)
+                i_constraint_2 = (phi_i_sk[i, k].value <= sum_z_bi_sk_value + (1 - epsilon))
+                feasibility_report[f"Ràng buộc 15i cho RU {i}, UE {k}, RB {b}"] = (i_constraint_1 and i_constraint_2)
 
         # Kiểm tra ràng buộc (15j)
         for i in range(num_RUs):
@@ -126,8 +136,12 @@ def optimize(num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, max_tx_power_watts, rb
         # Ràng buộc (15i)
         for i in range(num_RUs):
             for k in range(num_UEs):
-                constraints.append(cp.sum([z_bi_sk[(i, k, b)] for b in range(num_RBs)])/num_RBs <= phi_i_sk[i, k])
-                constraints.append(phi_i_sk[i, k] <= cp.sum([z_bi_sk[(i, k, b)] for b in range(num_RBs)])/num_RBs + (1 - epsilon))
+        # Tính tổng của tất cả các giá trị z_bi_sk[(i, k, b)] trên miền b
+                sum_z_bi_sk = cp.sum([z_bi_sk[(i, k, b)] for b in range(num_RBs)]) / num_RBs
+        
+        # Áp dụng ràng buộc mới sử dụng sum_z_bi_sk
+                constraints.append(sum_z_bi_sk <= phi_i_sk[i, k])
+                constraints.append(phi_i_sk[i, k] <= sum_z_bi_sk + (1 - epsilon))
 
         # Ràng buộc (15j)
         for i in range(num_RUs):
