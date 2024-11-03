@@ -3,7 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-
 def gen_coordinates_RU(num_RUs, radius):
     circle_RU_out = radius * 0.65
     angles = np.linspace(0, 2 * np.pi, num_RUs - 1, endpoint=False) 
