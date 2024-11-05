@@ -3,6 +3,7 @@ def print_results(pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_s
     
     # In ra số lượng UE được chấp nhận
     print("Giá trị của pi_sk (UE được chấp nhận):")
+    print(type(pi_sk)) 
     print(pi_sk.value)
     
     # In ra phân bổ RB cho mỗi RU-UE
@@ -37,3 +38,9 @@ def print_results(pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_s
         for k in range(mu_bi_sk.shape[1]):
             for b in range(mu_bi_sk.shape[2]):
                 print(f"mu_bi_sk[{i}, {k}, {b}] = {mu_bi_sk[i, k, b].value}")
+
+
+def print_short_term_results(R_sk_short_term):
+    print("\nGiá trị của R_sk_short_term:")
+    print(type(R_sk_short_term))
+    print(R_sk_short_term.value)
