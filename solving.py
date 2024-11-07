@@ -1,0 +1,226 @@
+import numpy as np
+import cvxpy as cp
+
+def optimize(num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, max_tx_power_mwatts, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon):
+    try:
+        # Khởi tạo ma trận z_bi_sk (biến nhị phân)
+        z_bi_sk = np.empty((num_RUs, num_UEs, num_RBs), dtype=object)
+        for i in range(num_RUs):
+            for b in range(num_RBs):
+                for k in range(num_UEs):
+                    z_bi_sk[i,k,b]= cp.Variable(boolean=True)
+        
+        # Khởi tạo ma trận mu (biến liên tục): mu = Z_bi_sk * P_bi_sk
+        mu_bi_sk = np.empty((num_RUs, num_UEs, num_RBs), dtype=object)
+        for i in range(num_RUs):
+            for b in range(num_RBs):
+                for k in range(num_UEs):
+                    mu_bi_sk[i,k,b]= cp.Variable()
+        
+        # Khởi tạo ma trận phân bổ công suất (biến liên tục): P_bi_sk
+        P_bi_sk = np.empty((num_RUs, num_UEs, num_RBs), dtype=object)
+        for i in range(num_RUs):
+            for b in range(num_RBs):
+                for k in range(num_UEs):
+                    P_bi_sk[i,k,b]= cp.Variable()
+
+        # Khởi tạo các biến phi_i_sk, phi_j_sk, phi_m_sk
+        phi_i_sk = cp.Variable((num_RUs, num_UEs), boolean=True)
+        phi_j_sk = cp.Variable((num_DUs, num_UEs), boolean=True)
+        phi_m_sk = cp.Variable((num_CUs, num_UEs), boolean=True)
+
+        # Biến tối ưu cho việc phân bổ
+        pi_sk = cp.Variable((num_UEs), boolean=True)
+
+        # Hàm mục tiêu
+        count_P = 0
+        for i in range(num_RUs):
+            for b in range(num_RBs):
+                for k in range(num_UEs):
+                    count_P += P_bi_sk[(i, k, b)]
+
+        #objective = cp.Maximize(cp.sum(pi_sk) - count_P * 1e-3)
+        objective = cp.Maximize(cp.sum(pi_sk))
+        # Danh sách ràng buộc
+        constraints = []
+        for i in range(num_RUs):
+            for b in range(num_RBs):
+                for k in range(num_UEs):
+                    constraints.append(mu_bi_sk[(i, k, b)] >= 0)
+        for b in range(num_RBs):
+            sum_z_bi_sk = 0
+            for i in range(num_RUs):
+                for k in range(num_UEs):
+                    sum_z_bi_sk += z_bi_sk[i,k,b]
+            constraints.append(sum_z_bi_sk <= 1)
+        for i in range(num_RUs):
+            for b in range(num_RBs):
+                for k in range(num_UEs):
+                    constraints.append(z_bi_sk[(i, k, b)] <= 1)
+        # Ràng buộc (16a)
+        for k in range(num_UEs):
+            R_sk = 0
+            for b in range(num_RBs):
+                SNR_sum = 0
+                for i in range(num_RUs): 
+                    SNR_sum += gain[i, k, b] * mu_bi_sk[(i, k, b)]
+                R_sk += rb_bandwidth * cp.log(1 + SNR_sum) / np.log(2)
+            constraints.append(R_sk >= R_min * pi_sk[k])
+
+        # Ràng buộc (16b)
+        for i in range(num_RUs):
+            total_power = 0
+            for b in range(num_RBs):
+                for k in range(num_UEs):  
+                    total_power += mu_bi_sk[(i, k, b)]
+            constraints.append(total_power <= max_tx_power_mwatts) 
+
+        # Ràng buộc (16c)
+        for j in range(num_DUs):
+            count_du = cp.sum(phi_j_sk[j, :]) * D_j
+            constraints.append(count_du <= A_j[j])
+
+        # Ràng buộc (16d)
+        for m in range(num_CUs):
+            count_cu = cp.sum(phi_m_sk[m, :]) * D_m
+            constraints.append(count_cu <= A_m[m])
+
+        # Ràng buộc (16e + 16f + 16g)
+        for k in range(num_UEs):
+            #constraints.append(cp.sum(phi_i_sk[:, k]) <= 1) 
+            constraints.append(cp.sum(phi_i_sk[:, k]) == pi_sk[k])
+            constraints.append(cp.sum(phi_j_sk[:, k]) == pi_sk[k])
+            constraints.append(cp.sum(phi_m_sk[:, k]) == pi_sk[k])
+        
+        # Ràng buộc (16h)
+        for i in range(num_RUs):
+            for k in range(num_UEs):
+                count_z = 0
+                for b in range(num_RBs):
+                    count_z += z_bi_sk[(i, k, b)]
+                constraints.append(count_z / num_RBs <= phi_i_sk[i, k])
+                constraints.append(phi_i_sk[i, k] <= count_z / num_RBs + (1 - epsilon)) 
+
+        # Ràng buộc (16i)
+        for i in range(num_RUs):
+            for j in range(num_DUs):
+                constraints.append(phi_j_sk[j, :] <= l_ru_du[i, j] - phi_i_sk[i, :] + 1)
+
+        # Ràng buộc (16j)
+        for j in range(num_DUs):
+            for m in range(num_CUs):
+                constraints.append(phi_m_sk[m, :] <= l_du_cu[j, m] - phi_j_sk[j, :] + 1)
+
+        
+        # Ràng buộc bổ sung: z <= y_max * x, z >= y - y_max*(1-x), z <= y
+        for i in range(num_RUs):
+            for k in range(num_UEs):
+                for b in range(num_RBs):
+                    constraints.append(mu_bi_sk[(i, k, b)] <= max_tx_power_mwatts * z_bi_sk[(i, k, b)])
+                    constraints.append(mu_bi_sk[(i, k, b)] >= P_bi_sk[(i, k, b)] - max_tx_power_mwatts * (1- z_bi_sk[(i, k, b)]))
+                    constraints.append(mu_bi_sk[(i, k, b)] <= P_bi_sk[(i, k, b)])
+
+        # Các UE k khác nhau connect tới RU i 
+        for i in range(num_RUs):
+            for b in range(num_RBs):
+                count_z = 0
+                for k in range(num_UEs):
+                    count_z += z_bi_sk[(i, k, b)]
+                constraints.append(count_z <= 1)
+
+
+        # Giải bài toán tối ưu
+        problem = cp.Problem(objective, constraints)
+        problem.solve(solver=cp.MOSEK)
+
+        return pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk
+
+    except cp.SolverError:
+        print('Solver error: non_feasible')
+        return None, None, None, None, None, None, None
+    except Exception as e:
+        print(f'An error occurred: {e}')
+        return None, None, None, None, None, None, None
+    
+
+def short_term(num_RUs, num_RBs, num_UEs, rb_bandwidth, gain, R_min, max_tx_power_mwatts, pi_sk):
+    try:
+        # Khởi tạo ma trận z_bi_sk (biến nhị phân)
+        z_bi_sk = np.empty((num_RUs, num_UEs, num_RBs), dtype=object)
+        for i in range(num_RUs):
+            for b in range(num_RBs):
+                for k in range(num_UEs):
+                    z_bi_sk[i, k, b] = cp.Variable(boolean=True)
+
+        # Khởi tạo ma trận mu (biến liên tục): mu = Z_bi_sk * P_bi_sk
+        mu_bi_sk = np.empty((num_RUs, num_UEs, num_RBs), dtype=object)
+        for i in range(num_RUs):
+            for b in range(num_RBs):
+                for k in range(num_UEs):
+                    mu_bi_sk[i, k, b] = cp.Variable()
+
+        # Khởi tạo ma trận phân bổ công suất (biến liên tục): P_bi_sk
+        P_bi_sk = np.empty((num_RUs, num_UEs, num_RBs), dtype=object)
+        for i in range(num_RUs):
+            for b in range(num_RBs):
+                for k in range(num_UEs):
+                    P_bi_sk[i, k, b] = cp.Variable()
+
+        # Khởi tạo biến R_sk cho từng UE
+        R_sk_short_term = cp.Variable(num_UEs)  # Một biến liên tục cho mỗi UE
+
+        constraints = []    
+
+        # Ràng buộc (18a) - Mỗi RB tại một RU chỉ được sử dụng bởi tối đa một UE
+        for i in range(num_RUs):
+            for b in range(num_RBs):
+                count_z = 0
+                for k in range(num_UEs):
+                    count_z += z_bi_sk[i, k, b]
+                constraints.append(count_z <= 1)
+
+        # Ràng buộc (18c) - Tốc độ yêu cầu tối thiểu cho mỗi UE
+        for k in range(num_UEs):
+            SNR_sum = 0
+            for b in range(num_RBs):
+                for i in range(num_RUs): 
+                    SNR_sum += gain[i, k, b] * mu_bi_sk[i, k, b]
+            # Tốc độ yêu cầu tối thiểu cho mỗi UE
+            constraints.append(R_sk_short_term[k] >= R_min * pi_sk[k])  # R_sk phải lớn hơn hoặc bằng R_min * pi_sk[k]
+
+            # Tính R_sk dựa trên công thức tốc độ
+            constraints.append(R_sk_short_term[k] == rb_bandwidth * cp.log(1 + SNR_sum) / np.log(2))
+
+        # Ràng buộc (18d) - Giới hạn tổng công suất phát cho mỗi RU
+        for i in range(num_RUs):
+            total_power = 0
+            for b in range(num_RBs):
+                for k in range(num_UEs):  
+                    total_power += mu_bi_sk[i, k, b]
+            constraints.append(total_power <= max_tx_power_mwatts)
+
+        # Ràng buộc liên quan đến biến mu và P (đảm bảo mu = z * P và không vượt quá công suất tối đa)
+        for i in range(num_RUs):
+            for k in range(num_UEs):
+                for b in range(num_RBs):
+                    constraints.append(mu_bi_sk[i, k, b] <= max_tx_power_mwatts * z_bi_sk[i, k, b])
+                    constraints.append(mu_bi_sk[i, k, b] >= P_bi_sk[i, k, b] - max_tx_power_mwatts * (1 - z_bi_sk[i, k, b]))
+                    constraints.append(mu_bi_sk[i, k, b] <= P_bi_sk[i, k, b])
+
+        # Hàm mục tiêu: Tối đa hóa tổng tốc độ của tất cả các UE
+        total_rate = cp.sum(R_sk_short_term)  # Tổng tốc độ của tất cả các UE
+
+        objective = cp.Maximize(total_rate)
+
+        # Giải bài toán tối ưu
+        problem = cp.Problem(objective, constraints)
+        problem.solve(solver=cp.MOSEK)
+
+        return R_sk_short_term  # Trả về kết quả tốc độ của các UE sau khi tối ưu
+
+    except cp.SolverError:
+        print('Solver error: non_feasible')
+        return None, None, None, None
+    except Exception as e:
+        print(f'An error occurred: {e}')
+        return None, None, None, None

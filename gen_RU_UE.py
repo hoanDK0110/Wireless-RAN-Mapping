@@ -35,6 +35,29 @@ def calculate_distances(coordinates_RU, coordinates_UE, num_RUs, num_UEs):
             distances_RU_UE[i, j] = np.sqrt((x_RU - x_UE)**2 + (y_RU - y_UE)**2)
     return distances_RU_UE
 
+
+def gen_coordinates_UE_for_short_term(ue_index, coordinates_UE, k):
+    x_current, y_current = coordinates_UE[ue_index]
+    
+    r = np.random.uniform(0, k)
+
+    angle = np.random.uniform(0, 2 * np.pi)
+
+    x_new = x_current + r * np.cos(angle)
+    y_new = y_current + r * np.sin(angle)
+
+    coordinates_UE[ue_index] = (x_new, y_new)
+    return coordinates_UE
+
+def calculate_updated_distances(coordinates_RU, coordinates_UE, num_RUs, num_UEs, ue_index, k):
+    # Cập nhật vị trí của UE với chỉ số được chỉ định
+    coordinates_UE = gen_coordinates_UE_for_short_term(ue_index, coordinates_UE, k)
+    
+    # Tính toán khoảng cách sau khi cập nhật vị trí UE
+    updated_distances = calculate_distances(coordinates_RU, coordinates_UE, num_RUs, num_UEs)
+    
+    return updated_distances
+
 def plot_save_network(coordinates_RU, coordinates_UE, radius_in, radius_out):
     circle_in = plt.Circle((0, 0), radius_in, color='gray', fill=False, linestyle='--', label='Inner Radius')
     circle_out = plt.Circle((0, 0), radius_out, color='black', fill=False, linestyle='--', label='Outer Radius')
