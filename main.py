@@ -4,6 +4,8 @@ import RAN_topo
 import solving
 import benmark
 import time
+import chart
+import numpy as np
 
 num_RUs = 4                             # Số lượng RU (bao gồm RU ở tâm)
 num_DUs = 2                             # Số lượng DU
@@ -53,15 +55,36 @@ gain = wireless.channel_gain(distances_RU_UE, num_RUs, num_UEs, num_RBs, num_ant
 pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk = solving.global_problem(num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, max_tx_power_mwatts, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon)
 
 benmark.print_results(pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk)
+used_power = np.zeros(P_bi_sk.shape[0])
+unused_power = np.zeros(P_bi_sk.shape[0])
+for i in range(P_bi_sk.shape[0]):
+        temp = 0
+        for k in range(P_bi_sk.shape[1]):
+            for b in range(P_bi_sk.shape[2]):
+                temp += P_bi_sk[i,k,b].value
+        used_power[i] = (temp / max_tx_power_mwatts) * 100
+        unused_power[i] = 100 - used_power[i]
+chart.plot_power_usage(used_power, unused_power)
+used_rb = 0
+unused_rb = 0
+for i in range(z_bi_sk.shape[0]):
+    temp_rb = 0
+    for k in range(z_bi_sk.shape[1]):
+        for b in range(z_bi_sk.shape[2]):
+            temp_rb += z_bi_sk[i, k, b].value
+    used_rb += temp_rb
+used_rb = (used_rb / num_RBs) * 100
+unused_rb = 100 - used_rb
+chart.plot_rb_usage(used_rb, unused_rb)
 #short-term
 pi_sk_value_for_short_term = pi_sk.value
-for i in range(num_UEs):
-    if pi_sk_value_for_short_term[i] == 1 :
-        coordinates_UE_short_term = gen_RU_UE.gen_coordinates_UE_for_short_term(i, coordinates_UE, 5) 
-distances_RU_UE_short_term = gen_RU_UE.calculate_distances(coordinates_RU, coordinates_UE, num_RUs, num_UEs)
-gain_short_term = wireless.channel_gain(distances_RU_UE_short_term, num_RUs, num_UEs, num_RBs, num_antennas, path_loss_ref, path_loss_exp, noise_power_watts)
-R_sk_short_term,mu_bi_sk_short_term,z_bi_sk_short_term = solving.short_term(num_RUs, num_RBs, num_UEs, rb_bandwidth, gain_short_term, R_min, max_tx_power_mwatts, pi_sk_value_for_short_term)
-benmark.print_short_term_results(R_sk_short_term,mu_bi_sk_short_term,z_bi_sk_short_term)
+# for i in range(num_UEs):
+#     if pi_sk_value_for_short_term[i] == 1 :
+#         coordinates_UE_short_term = gen_RU_UE.gen_coordinates_UE_for_short_term(i, coordinates_UE, 5) 
+# distances_RU_UE_short_term = gen_RU_UE.calculate_distances(coordinates_RU, coordinates_UE, num_RUs, num_UEs)
+# gain_short_term = wireless.channel_gain(distances_RU_UE_short_term, num_RUs, num_UEs, num_RBs, num_antennas, path_loss_ref, path_loss_exp, noise_power_watts)
+# R_sk_short_term,mu_bi_sk_short_term,z_bi_sk_short_term = solving.short_term(num_RUs, num_RBs, num_UEs, rb_bandwidth, gain_short_term, R_min, max_tx_power_mwatts, pi_sk_value_for_short_term)
+# benmark.print_short_term_results(R_sk_short_term,mu_bi_sk_short_term,z_bi_sk_short_term)
 
 
 last_3s_time = time.time()
@@ -80,5 +103,6 @@ while True:
     if current_time - last_12s_time >=12:
         pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk = solving.long_term(num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, max_tx_power_mwatts, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon)
         benmark.print_results(pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk)
+        pi_sk_value_for_short_term = pi_sk.value
         last_12s_time = current_time
     time.sleep(1)
