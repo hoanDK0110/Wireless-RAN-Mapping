@@ -10,6 +10,7 @@ def plot_power_usage(used_power, unused_power):
     bar2 = plt.bar(categories, unused_power, bar_width, bottom=used_power, label="Unused power", color='lightgrey')
     plt.xlabel("categories")
     plt.ylabel("Power usage (%)")
+    plt.ylim = [0,105]
     plt.title("Power usage")
     plt.legend(["Used power", "Unused power"], loc="upper left")
     plt.tight_layout()
@@ -23,6 +24,7 @@ def plot_rb_usage(used_rb, unused_rb):
     bar2 = plt.bar(categories, unused_rb, bar_width, bottom=used_rb, label="Unused RB", color='lightgrey')
     plt.xlabel("categories")
     plt.ylabel("RB usage (%)")
+    plt.ylim = [0,105]
     plt.title("RB usage")
     plt.legend(["Used RB", "Unused RB"], loc="upper left")
     plt.tight_layout()
