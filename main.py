@@ -46,7 +46,6 @@ G = RAN_topo.create_topo(num_RUs, num_DUs, num_CUs, capacity_node)
 
 # Danh sách tập các liên kết trong mạng
 l_ru_du, l_du_cu = RAN_topo.get_links(G)
-print(l_ru_du)
 
 # Tập các capacity của các node DU, CU
 A_j, A_m = RAN_topo.get_node_cap(G)
@@ -109,7 +108,7 @@ while True:
             benmark.print_short_term_results(num_slice,num_RUs,num_DUs,num_CUs,num_UEs,R_sk_short_term,mu_bi_sk_short_term,z_bi_sk_short_term)
             last_3s_time = current_time
     if current_time - last_12s_time >=12:
-        pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk = solving.long_term(num_slice, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, max_tx_power_mwatts, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon)
+        pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk = solving.global_problem(num_slice, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, max_tx_power_mwatts, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon)
         benmark.print_results(num_slice,num_RUs,num_DUs,num_CUs,num_UEs,pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk)
         pi_sk_value_for_short_term = pi_sk.value
         last_12s_time = current_time
