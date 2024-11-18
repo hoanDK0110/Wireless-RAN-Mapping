@@ -2,10 +2,10 @@ import gen_RU_UE
 import wireless
 import RAN_topo
 import solving
-import benmark
+import benchmark
 import time
-import chart
 import numpy as np
+import csv
 
 num_RUs = 4                             # Số lượng RU (bao gồm RU ở tâm)
 num_DUs = 2                             # Số lượng DU
@@ -55,18 +55,20 @@ gain = wireless.channel_gain(distances_RU_UE, num_slice, num_RUs, num_UEs, num_R
 # Solve
 pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk = solving.global_problem(num_slice, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, max_tx_power_mwatts, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon)
 
-benmark.print_results(num_slice,num_RUs,num_DUs,num_CUs,num_UEs,pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk)
+benchmark.print_results(num_slice,num_RUs,num_DUs,num_CUs,num_UEs,pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk)
+# Tính toán used_power và unused_power
 used_power = np.zeros(P_bi_sk.shape[1])
 unused_power = np.zeros(P_bi_sk.shape[1])
 for s in range(P_bi_sk.shape[0]):
     for i in range(P_bi_sk.shape[1]):
-            temp = 0
-            for k in range(P_bi_sk.shape[2]):
-                for b in range(P_bi_sk.shape[3]):
-                    temp += P_bi_sk[s,i,k,b].value
-            used_power[i] = (temp / max_tx_power_mwatts) * 100
-            unused_power[i] = 100 - used_power[i]
-chart.plot_power_usage(used_power, unused_power)
+        temp = 0
+        for k in range(P_bi_sk.shape[2]):
+            for b in range(P_bi_sk.shape[3]):
+                temp += P_bi_sk[s, i, k, b].value
+        used_power[i] = (temp / max_tx_power_mwatts) * 100
+        unused_power[i] = 110 - used_power[i]
+
+# Tính toán used_rb và unused_rb
 used_rb = 0
 unused_rb = 0
 for s in range(z_bi_sk.shape[0]):
@@ -77,8 +79,99 @@ for s in range(z_bi_sk.shape[0]):
                 temp_rb += z_bi_sk[s, i, k, b].value
         used_rb += temp_rb
 used_rb = (used_rb / num_RBs) * 100
-unused_rb = 100 - used_rb
-chart.plot_rb_usage(used_rb, unused_rb)
+unused_rb = 110 - used_rb
+
+#Tính toán used_du và unused_du
+used_du = np.zeros(phi_j_sk.shape[1])
+unused_du = np.zeros(phi_j_sk.shape[1])
+for s in range(phi_j_sk.shape[0]):
+    for j in range(phi_j_sk.shape[1]):
+        temp_du = 0
+        for k in range(phi_j_sk.shape[2]):
+            temp_du += phi_j_sk[s, j , k].value
+        used_du[j] = (temp_du * D_j / capacity_node) * 100
+        unused_du[j] = 110 - used_du[j]
+
+#Tính toán used_cu và unused_cu
+used_cu = np.zeros(phi_m_sk.shape[1])
+unused_cu = np.zeros(phi_m_sk.shape[1])
+for s in range(phi_m_sk.shape[0]):
+    for m in range(phi_m_sk.shape[1]):
+        temp_cu = 0
+        for k in range(phi_m_sk.shape[2]):
+            temp_cu += phi_m_sk[s, m , k].value
+        used_cu[m] = (temp_cu * D_m / capacity_node) * 100
+        unused_cu[m] = 110 - used_cu[m]
+
+# Lưu trữ dữ liệu vào tệp
+np.save("used_power.npy", used_power)
+np.save("unused_power.npy", unused_power)
+np.save("used_rb.npy", used_rb)
+np.save("unused_rb.npy", unused_rb)
+np.save("used_du.npy", used_du)
+np.save("unused_du.npy", unused_du)
+np.save("used_cu.npy", used_cu)
+np.save("unused_cu.npy", unused_cu)
+
+# Ghi pi_sk ra file CSV (nếu pi_sk là một dictionary)
+with open('pi_sk.csv', mode='w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerow(["Index", "Accepted"])
+    if pi_sk.value is not None:
+        for idx, val in enumerate(pi_sk.value):
+            writer.writerow([idx, val])
+
+# Ghi z_bi_sk ra file CSV (nếu z_bi_sk là một dictionary)
+with open('z_bi_sk.csv', mode='w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerow(["(RU, UE, RB)", "Value"])
+    for s in range(num_slice):
+        for i in range(num_RUs):
+            for k in range(num_UEs):
+                for b in range(num_RBs):  # z_bi_sk là dictionary
+                    writer.writerow([s, i,k,b, z_bi_sk[(s, i, k, b)].value])
+
+# Ghi phi_i_sk ra file CSV (nếu phi_i_sk là một dictionary)
+with open('phi_i_sk.csv', mode='w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerow(["Slice", "RU", "UE", "Value"])
+    
+    # Duyệt qua từng slice, RU, và UE trong mảng phi_i_sk
+    for s in range(phi_i_sk.shape[0]):  
+        for i in range(phi_i_sk.shape[1]):  
+            for k in range(phi_i_sk.shape[2]):  
+                Phi_i_sk = phi_i_sk[s, i, k]  
+                if Phi_i_sk.value is not None:  
+                    writer.writerow([s, i, k, Phi_i_sk.value])  
+
+# Ghi phi_j_sk ra file CSV (nếu phi_j_sk là một dictionary)
+with open('phi_j_sk.csv', mode='w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerow(["Slice", "DU", "UE", "Value"])
+    
+    # Duyệt qua từng slice, RU, và UE trong mảng phi_i_sk
+    for s in range(phi_j_sk.shape[0]):  
+        for i in range(phi_j_sk.shape[1]):  
+            for k in range(phi_j_sk.shape[2]):  
+                Phi_j_sk = phi_j_sk[s, i, k]  
+                if Phi_j_sk.value is not None:  
+                    writer.writerow([s, i, k, Phi_j_sk.value])
+
+# Ghi phi_m_sk ra file CSV (nếu phi_m_sk là một dictionary)
+with open('phi_m_sk.csv', mode='w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerow(["Slice", "CU", "UE", "Value"])
+    
+    # Duyệt qua từng slice, RU, và UE trong mảng phi_i_sk
+    for s in range(phi_m_sk.shape[0]):  
+        for i in range(phi_m_sk.shape[1]):  
+            for k in range(phi_m_sk.shape[2]):  
+                Phi_m_sk = phi_m_sk[s, i, k]  
+                if Phi_m_sk.value is not None:  
+                    writer.writerow([s, i, k, Phi_m_sk.value])
+
+# Gọi hàm chart1 từ file chart
+#chart.chart1(used_power, unused_power, used_rb, unused_rb)
 #short-term
 pi_sk_value_for_short_term = pi_sk.value
 # for i in range(num_UEs):
@@ -88,10 +181,10 @@ pi_sk_value_for_short_term = pi_sk.value
 # gain_short_term = wireless.channel_gain(distances_RU_UE_short_term, num_RUs, num_UEs, num_RBs, num_antennas, path_loss_ref, path_loss_exp, noise_power_watts)
 # R_sk_short_term,mu_bi_sk_short_term,z_bi_sk_short_term = solving.short_term(num_RUs, num_RBs, num_UEs, rb_bandwidth, gain_short_term, R_min, max_tx_power_mwatts, pi_sk_value_for_short_term)
 # benmark.print_short_term_results(R_sk_short_term,mu_bi_sk_short_term,z_bi_sk_short_term)
-for s in range(num_slice):
-    for i in range(num_UEs):
-        if pi_sk_value_for_short_term[s,i] == 1 :
-            print(f"{i}")
+# for s in range(num_slice):
+#     for i in range(num_UEs):
+#         if pi_sk_value_for_short_term[s,i] == 1 :
+#             print(f"{i}")
 
 last_3s_time = time.time()
 last_12s_time = time.time()
@@ -105,11 +198,11 @@ while True:
             distances_RU_UE_short_term = gen_RU_UE.calculate_distances(coordinates_RU, coordinates_UE, num_RUs, num_UEs)
             gain_short_term = wireless.channel_gain(distances_RU_UE_short_term, num_slice, num_RUs, num_UEs, num_RBs, num_antennas, path_loss_ref, path_loss_exp, noise_power_watts)
             R_sk_short_term,mu_bi_sk_short_term,z_bi_sk_short_term = solving.short_term(num_slice, num_RUs, num_RBs, num_UEs, rb_bandwidth, gain_short_term, R_min, max_tx_power_mwatts, pi_sk_value_for_short_term)
-            benmark.print_short_term_results(num_slice,num_RUs,num_DUs,num_CUs,num_UEs,R_sk_short_term,mu_bi_sk_short_term,z_bi_sk_short_term)
+            benchmark.print_short_term_results(num_slice,num_RUs,num_DUs,num_CUs,num_UEs,R_sk_short_term,mu_bi_sk_short_term,z_bi_sk_short_term)
             last_3s_time = current_time
     if current_time - last_12s_time >=12:
         pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk = solving.global_problem(num_slice, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, max_tx_power_mwatts, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon)
-        benmark.print_results(num_slice,num_RUs,num_DUs,num_CUs,num_UEs,pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk)
+        benchmark.print_results(num_slice,num_RUs,num_DUs,num_CUs,num_UEs,pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk)
         pi_sk_value_for_short_term = pi_sk.value
         last_12s_time = current_time
     time.sleep(1)
