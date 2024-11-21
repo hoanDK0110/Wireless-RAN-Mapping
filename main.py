@@ -82,28 +82,26 @@ used_rb = (used_rb / num_RBs) * 100
 unused_rb = 110 - used_rb
 
 #Tính toán used_du và unused_du
-used_du = 0
-unused_du = 0
+used_du = np.zeros(phi_j_sk.shape[1])
+unused_du = np.zeros(phi_j_sk.shape[1])
 for s in range(phi_j_sk.shape[0]):
-    for i in range(phi_j_sk.shape[1]):
+    for j in range(phi_j_sk.shape[1]):
         temp_du = 0
         for k in range(phi_j_sk.shape[2]):
-            temp_du += phi_j_sk[s, i , k].value
-        used_du += temp_du
-used_du = (used_du / capacity_node) * 100
-unused_du = 110 - used_du
+            temp_du += phi_j_sk[s, j , k].value
+        used_du[j] = (temp_du * D_j / capacity_node) * 100
+        unused_du[j] = 110 - used_du[j]
 
 #Tính toán used_cu và unused_cu
-used_cu = 0
-unused_cu = 0
+used_cu = np.zeros(phi_m_sk.shape[1])
+unused_cu = np.zeros(phi_m_sk.shape[1])
 for s in range(phi_m_sk.shape[0]):
-    for i in range(phi_m_sk.shape[1]):
+    for m in range(phi_m_sk.shape[1]):
         temp_cu = 0
         for k in range(phi_m_sk.shape[2]):
-            temp_cu += phi_m_sk[s, i , k].value
-        used_cu += temp_cu
-used_cu = (used_cu / capacity_node) * 100
-unused_cu = 110 - used_cu
+            temp_cu += phi_m_sk[s, m , k].value
+        used_cu[m] = (temp_cu * D_m / capacity_node) * 100
+        unused_cu[m] = 110 - used_cu[m]
 
 # Lưu trữ dữ liệu vào tệp
 np.save("used_power.npy", used_power)
@@ -183,10 +181,10 @@ pi_sk_value_for_short_term = pi_sk.value
 # gain_short_term = wireless.channel_gain(distances_RU_UE_short_term, num_RUs, num_UEs, num_RBs, num_antennas, path_loss_ref, path_loss_exp, noise_power_watts)
 # R_sk_short_term,mu_bi_sk_short_term,z_bi_sk_short_term = solving.short_term(num_RUs, num_RBs, num_UEs, rb_bandwidth, gain_short_term, R_min, max_tx_power_mwatts, pi_sk_value_for_short_term)
 # benmark.print_short_term_results(R_sk_short_term,mu_bi_sk_short_term,z_bi_sk_short_term)
-for s in range(num_slice):
-    for i in range(num_UEs):
-        if pi_sk_value_for_short_term[s,i] == 1 :
-            print(f"{i}")
+# for s in range(num_slice):
+#     for i in range(num_UEs):
+#         if pi_sk_value_for_short_term[s,i] == 1 :
+#             print(f"{i}")
 
 last_3s_time = time.time()
 last_12s_time = time.time()
