@@ -2,6 +2,7 @@ import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import random
 
 def gen_coordinates_RU(num_RUs, radius):
     circle_RU_out = radius * 0.65
@@ -22,6 +23,25 @@ def gen_coordinates_UE(num_UEs, radius_in, radius_out):
     coordinates_UE = list(zip(x, y))  
     return coordinates_UE
 
+def adjust_coordinates_UE(coordinates_UE, delta_coordinate):
+    # Khởi tạo seed cho ngẫu nhiên để kết quả có thể tái tạo
+    np.random.seed(1)
+    new_coordinates_UE = []
+    
+    for x, y in coordinates_UE:
+        # Tạo độ lệch ngẫu nhiên trong khoảng [-delta_coordinate, delta_coordinate] cho cả x và y
+        delta_x = np.random.uniform(-delta_coordinate, delta_coordinate)
+        delta_y = np.random.uniform(-delta_coordinate, delta_coordinate)
+        
+        # Tọa độ mới sau khi thêm độ lệch
+        new_x = x + delta_x
+        new_y = y + delta_y
+        
+        # Thêm tọa độ mới vào danh sách
+        new_coordinates_UE.append((new_x, new_y))
+    
+    return new_coordinates_UE
+
 def calculate_distances(coordinates_RU, coordinates_UE, num_RUs, num_UEs):
     distances_RU_UE = np.zeros((num_RUs, num_UEs))
     for i in range(num_RUs):
@@ -30,6 +50,56 @@ def calculate_distances(coordinates_RU, coordinates_UE, num_RUs, num_UEs):
             x_UE, y_UE = coordinates_UE[j]
             distances_RU_UE[i, j] = np.sqrt((x_RU - x_UE)**2 + (y_RU - y_UE)**2)
     return distances_RU_UE
+
+def create_and_assign_slices(num_UEs, slices, D_j, D_m, R_min):  
+    # Khởi tạo các danh sách để lưu trữ từng thuộc tính
+    names = []
+    R_min_values = []
+    D_j_values = []
+    D_m_values = []
+
+    # Tạo và gán slice ngẫu nhiên cho từng UE
+    for _ in range(num_UEs):
+        # Chọn ngẫu nhiên loại slice
+        slice_type = random.choice(slices)
+        
+        if slice_type == "eMBB":
+            # Cấu hình slice eMBB
+            slice_config = {
+                "name": "eMBB",
+                "R_min": random.choice(R_min), 
+                "D_j": random.choice(D_j),      
+                "D_m": random.choice(D_m)       
+            }
+        
+        elif slice_type == "ULLRC":
+            # Cấu hình slice ULLRC
+            slice_config = {
+                "name": "ULLRC",
+                "R_min": random.choice(R_min) * 2,   
+                "D_j": random.choice(D_j),         
+                "D_m": random.choice(D_m)        
+            }
+
+        else: 
+            # Cấu hình slice mMTC
+            slice_config = {
+                "name": "mMTC",
+                "R_min": random.choice(R_min) * 0.5,   
+                "D_j": random.choice(D_j),        
+                "D_m": random.choice(D_m)             
+            }
+        
+        # Thêm từng thuộc tính vào danh sách tương ứng
+        names.append(slice_config["name"])
+        R_min_values.append(slice_config["R_min"])
+        D_j_values.append(slice_config["D_j"])
+        D_m_values.append(slice_config["D_m"])
+    
+    # Trả về các mảng riêng biệt
+    return names, R_min_values, D_j_values, D_m_values
+
+
 
 def plot_save_network(coordinates_RU, coordinates_UE, radius_in, radius_out):
     circle_in = plt.Circle((0, 0), radius_in, color='gray', fill=False, linestyle='--', label='Inner Radius')

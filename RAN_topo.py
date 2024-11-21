@@ -1,8 +1,9 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
+import random
 
-def create_topo(num_RUs, num_DUs, num_CUs, capacity_node):
+def create_topo(num_RUs, num_DUs, num_CUs, P_j_random_list, A_j_random_list, A_m_random_list):
     G = nx.Graph()
 
     # Tạo danh sách các nút RU, DU và CU
@@ -12,11 +13,11 @@ def create_topo(num_RUs, num_DUs, num_CUs, capacity_node):
 
     # Thêm các nút RU, DU và CU vào đồ thị
     for ru in RUs:
-        G.add_node(ru, type='RU')
+        G.add_node(ru, type='RU', power = random.choice(P_j_random_list))
     for du in DUs:
-        G.add_node(du, type='DU', capacity=capacity_node)
+        G.add_node(du, type='DU', capacity = random.choice(A_j_random_list))
     for cu in CUs:
-        G.add_node(cu, type='CU', capacity=capacity_node)
+        G.add_node(cu, type='CU', capacity = random.choice(A_m_random_list))
 
     # Kết nối RUs với DUs (Mỗi DU có thể kết nối với tất cả các RU)
     for du in DUs:
@@ -83,14 +84,17 @@ def get_links(G):
     return l_ru_du, l_du_cu
 
 def get_node_cap(G):
+    ru_weights = []  # Mảng chứa trọng số của các nút RU
     du_weights = []  # Mảng chứa trọng số của các nút DU
     cu_weights = []  # Mảng chứa trọng số của các nút CU
 
     # Duyệt qua tất cả các nút trong đồ thị
     for node, data in G.nodes(data=True):
+        if data['type'] == 'RU':  # Nếu nút là RU
+            ru_weights.append(data['power'])
         if data['type'] == 'DU':  # Nếu nút là DU
             du_weights.append(data['capacity'])
         elif data['type'] == 'CU':  # Nếu nút là CU
             cu_weights.append(data['capacity'])
 
-    return du_weights, cu_weights
+    return ru_weights, du_weights, cu_weights
