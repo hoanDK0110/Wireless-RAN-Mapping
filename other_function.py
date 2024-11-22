@@ -104,6 +104,7 @@ class Stopwatch:
         )
         if not self.silent:
             print(f"StopWatch={self.name} | {self.__row2str(r)}")
+        self.i += 1
     
     def add(self, contents=None):
         if self.stopped:
