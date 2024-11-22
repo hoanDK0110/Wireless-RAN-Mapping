@@ -33,7 +33,7 @@ def short_term(num_slices, num_UEs, num_RUs, num_RBs, rb_bandwidth, P_i, gain, R
           
 
         # Hàm mục tiêu: Tối ưu tổng công suất phân bổ
-        objective = cp.Maximize(cp.sum(short_p_ib_sk[i, b, s, k] for i in range(num_RUs) for b in range(num_RBs) for s in range(num_slices) for k in range(num_UEs)))
+        objective = cp.Maximize(cp.sum([short_p_ib_sk[i, b, s, k] for i in range(num_RUs) for b in range(num_RBs) for s in range(num_slices) for k in range(num_UEs)]))
 
 
         # Danh sách ràng buộc
