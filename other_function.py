@@ -84,22 +84,26 @@ def load_object(filename):
         return pkl.load(f)
     
 class Stopwatch:
-    def __init__(self, name):
+    def __init__(self, name, silent=True):
         self.name = name
         self.createat = datetime.datetime.now()
         self.startedat = None
         self.stopped = False
         self.checkpoints = []
         self.i = 0
+        self.silent = silent
         
     def start(self):
         if self.stopped:
             raise Exception("Cannot start a stopped instance !!!")
         self.startedat = datetime.datetime.now()
         timestamp = round(time.process_time(), 5)
+        r = (timestamp, "Started", 0)
         self.checkpoints.append(
-            (timestamp, "Started", 0)
+            r
         )
+        if not self.silent:
+            print(f"StopWatch={self.name} | {self.__row2str(r)}")
     
     def add(self, contents=None):
         if self.stopped:
@@ -110,10 +114,13 @@ class Stopwatch:
             contents = f"Checkpoint_{self.i}"
         timestamp = round(time.process_time(), 5)
         diff = round(timestamp - self.checkpoints[self.i-1][0], 5)
+        r = (timestamp, contents, diff)
         self.checkpoints.append(
-            (timestamp, contents, diff)
+            r
         )
         self.i += 1
+        if not self.silent:
+            print(f"StopWatch={self.name} | {self.__row2str(r)}")
         
     def stop(self):
         if self.stopped:
@@ -123,18 +130,24 @@ class Stopwatch:
         self.stopped = True
         timestamp = round(time.process_time(), 5)
         diff = round(timestamp - self.checkpoints[self.i-1][0], 5)
+        r = (timestamp, "Stopped", diff)
         self.checkpoints.append(
-            (timestamp, "Started", diff)
+            r
         )
         self.i += 1
+        if not self.silent:
+            print(f"StopWatch={self.name} | {self.__row2str(r)}")
 
     def __repr__(self):
         return f"stopwatch name={self.name} created={self.createat.strftime('%Y%m%d_%H%M%S')} started={not (self.startedat is None)} stopped={self.stopped} n={self.i}"
+    
+    def __row2str(self, r):
+        return f"{r[0]},{r[2]},{r[1]}"
         
     def write_to_file(self, filename):
         with open(filename, "wt") as f:
             f.write("time,diff,contents\n")
             for r in self.checkpoints:
                 f.write(
-                    f"{r[0]},{r[2]},{r[1]}\n"
+                    self.__row2str(r)+"\n"
                 )
