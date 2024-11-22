@@ -1,4 +1,8 @@
 import numpy as np
+import pickle as pkl
+import gzip as gz
+import datetime
+import time
 
 def extract_optimization_results(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs,pi_sk, z_ib_sk, p_ib_sk, mu_ib_sk, phi_i_sk, phi_j_sk, phi_m_sk):
     """
@@ -69,4 +73,68 @@ def extract_optimization_results(num_slices, num_UEs, num_RUs, num_DUs, num_CUs,
 
     return arr_pi_sk, arr_z_ib_sk, arr_p_ib_sk, arr_mu_ib_sk, arr_phi_i_sk, arr_phi_j_sk, arr_phi_m_sk
 
+def save_object(filename, object):
+    with gz.open(filename, mode="wb", compresslevel=9) as f:
+        f.write(
+            pkl.dumps(object)
+        )
+        
+def load_object(filename):
+    with gz.open(filename, mode='"rb') as f:
+        return pkl.load(f)
+    
+class Stopwatch:
+    def __init__(self, name):
+        self.name = name
+        self.createat = datetime.datetime.now()
+        self.startedat = None
+        self.stopped = False
+        self.checkpoints = []
+        self.i = 0
+        
+    def start(self):
+        if self.stopped:
+            raise Exception("Cannot start a stopped instance !!!")
+        self.startedat = datetime.datetime.now()
+        timestamp = round(time.process_time(), 5)
+        self.checkpoints.append(
+            (timestamp, "Started", 0)
+        )
+    
+    def add(self, contents=None):
+        if self.stopped:
+            raise Exception("Cannot add checkpoing to a stopped instance !!!")
+        if self.startedat is None:
+            raise Exception("Cannot add checkpoing to a not-yet-started instance !!!")
+        if contents is None:
+            contents = f"Checkpoint_{self.i}"
+        timestamp = round(time.process_time(), 5)
+        diff = round(timestamp - self.checkpoints[self.i-1][0], 5)
+        self.checkpoints.append(
+            (timestamp, contents, diff)
+        )
+        self.i += 1
+        
+    def stop(self):
+        if self.stopped:
+            return
+        if self.startedat is None:
+            raise Exception("Cannot stop a not-yet-started instance !!!")
+        self.stopped = True
+        timestamp = round(time.process_time(), 5)
+        diff = round(timestamp - self.checkpoints[self.i-1][0], 5)
+        self.checkpoints.append(
+            (timestamp, "Started", diff)
+        )
+        self.i += 1
 
+    def __repr__(self):
+        return f"stopwatch name={self.name} created={self.createat.strftime('%Y%m%d_%H%M%S')} started={not (self.startedat is None)} stopped={self.stopped} n={self.i}"
+        
+    def write_to_file(self, filename):
+        with open(filename, "wt") as f:
+            f.write("time,diff,contents\n")
+            for r in self.checkpoints:
+                f.write(
+                    f"{r[0]},{r[2]},{r[1]}\n"
+                )
