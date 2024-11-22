@@ -1,9 +1,10 @@
 import numpy as np
 import cvxpy as cp
+import time
 
 SOLVER = cp.MOSEK
 
-def short_term(num_slices, num_UEs, num_RUs, num_RBs, rb_bandwidth, P_i, gain, R_min, pi_sk, phi_i_sk):
+def short_term(num_slices, num_UEs, num_RUs, num_RBs, rb_bandwidth, P_i, gain, R_min, pi_sk, phi_i_sk, logger=None):
     try:
         # Khởi tạo ma trận nhị phân: short_z_ib_sk (biến xác phân bổ ánh xạ UE k kết nối tới RU i qua RB b tại slice s)
         short_z_ib_sk = np.empty((num_RUs, num_RBs, num_slices, num_UEs), dtype=object)
@@ -69,7 +70,15 @@ def short_term(num_slices, num_UEs, num_RUs, num_RBs, rb_bandwidth, P_i, gain, R
 
         # Giải bài toán tối ưu
         problem = cp.Problem(objective, constraints)
-        problem.solve(solver=SOLVER)
+        if logger is None:
+            print(f"{time.process_time()} [solver] actual_solve")
+        else:
+            logger.add("[solver] actual_solve")
+        problem.solve(solver = SOLVER)
+        if logger is None:
+            print(f"{time.process_time()} [solver] actual_solve {problem.status}")
+        else:
+            logger.add(f"[solver] actual_solve {problem.status}")
 
         # Trả về kết quả tối ưu công suất và ánh xạ RB
         return short_pi_sk, short_z_ib_sk, short_p_ib_sk, short_mu_ib_sk
@@ -82,7 +91,7 @@ def short_term(num_slices, num_UEs, num_RUs, num_RBs, rb_bandwidth, P_i, gain, R
         return None, None, None, None
 
 
-def long_term(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, P_i, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma):
+def long_term(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, P_i, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, logger=None):
     try:
         # Khởi tạo ma trận nhị phân: z_ib_sk
         z_ib_sk = np.empty((num_RUs, num_RBs, num_slices, num_UEs), dtype=object)
@@ -205,7 +214,15 @@ def long_term(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, P_i, rb_b
 
         # Giải bài toán tối ưu
         problem = cp.Problem(objective, constraints)
+        if logger is None:
+            print(f"{time.process_time()} [solver] actual_solve")
+        else:
+            logger.add("[solver] actual_solve")
         problem.solve(solver = SOLVER)
+        if logger is None:
+            print(f"{time.process_time()} [solver] actual_solve {problem.status}")
+        else:
+            logger.add(f"[solver] actual_solve {problem.status}")
 
         #with open('./Wireless-RAN-Mapping/result/demo-debug.prob', 'wt') as f:
         #    f.write(str(problem))
