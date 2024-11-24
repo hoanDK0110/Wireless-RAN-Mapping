@@ -1,7 +1,7 @@
 import numpy as np
 import cvxpy as cp
 
-def global_problem(num_slice, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, max_tx_power_mwatts, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon):
+def global_problem(running_mode, phi_i_sk, num_slice, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, max_tx_power_mwatts, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon):
     try:
         # Khởi tạo ma trận z_bi_sk (biến nhị phân)
         z_bi_sk = np.empty((num_slice, num_RUs, num_UEs, num_RBs), dtype=object)
@@ -28,11 +28,13 @@ def global_problem(num_slice, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, max_t
                         P_bi_sk[s,i,k,b]= cp.Variable()
 
         # Khởi tạo các biến phi_i_sk, phi_j_sk, phi_m_sk
-        phi_i_sk = np.empty((num_slice, num_RUs, num_UEs), dtype=object)
-        for s in range(num_slice):
-            for i in range(num_RUs):
-                for k in range(num_UEs):
-                    phi_i_sk[s,i,k]= cp.Variable(boolean=True)
+        if running_mode == 0:
+            del phi_i_sk
+            phi_i_sk = np.empty((num_slice, num_RUs, num_UEs), dtype=object)
+            for s in range(num_slice):
+                for i in range(num_RUs):
+                    for k in range(num_UEs):
+                        phi_i_sk[s,i,k]= cp.Variable(boolean=True)
         phi_j_sk = np.empty((num_slice, num_DUs, num_UEs), dtype=object)
         for s in range(num_slice):
             for j in range(num_DUs):
@@ -199,7 +201,7 @@ def global_problem(num_slice, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, max_t
         return None, None, None, None, None, None, None
     
 
-def short_term(num_slice, num_RUs, num_RBs, num_UEs, rb_bandwidth, gain, R_min, max_tx_power_mwatts, pi_sk):
+def short_term(num_slice, num_RUs, num_DUs, num_CUs, num_RBs, num_UEs, epsilon, l_ru_du, l_du_cu, rb_bandwidth, gain, R_min, max_tx_power_mwatts, pi_sk, phi_i_sk, phi_j_sk, phi_m_sk):
     try:
         # Khởi tạo ma trận z_bi_sk (biến nhị phân)
         z_bi_sk = np.empty((num_slice, num_RUs, num_UEs, num_RBs), dtype=object)
@@ -276,6 +278,28 @@ def short_term(num_slice, num_RUs, num_RBs, num_UEs, rb_bandwidth, gain, R_min, 
                         constraints.append(mu_bi_sk[s, i, k, b] >= P_bi_sk[s, i, k, b] - max_tx_power_mwatts * (1 - z_bi_sk[s, i, k, b]))
                         constraints.append(mu_bi_sk[s, i, k, b] <= P_bi_sk[s, i, k, b])
 
+        for s in range(num_slice):
+            for i in range(num_RUs):
+                for k in range(num_UEs):
+                    count_z = 0
+                    for b in range(num_RBs):
+                        count_z += z_bi_sk[(s, i, k, b)]
+                    constraints.append(count_z / num_RBs <= phi_i_sk[s, i, k])
+                    constraints.append(phi_i_sk[s, i, k] <= count_z / num_RBs + (1 - epsilon)) 
+
+
+        # for s in range(num_slice):
+        #     for i in range(num_RUs):
+        #         for j in range(num_DUs):
+        #             for k in range(num_UEs):
+        #                 constraints.append(phi_j_sk[s, j, k] <= l_ru_du[i, j] - phi_i_sk[s, i, k] + 1)
+
+
+        # for s in range(num_slice):
+        #     for j in range(num_DUs):
+        #         for m in range(num_CUs):
+        #             for k in range(num_UEs):
+        #                 constraints.append(phi_m_sk[s, m, k] <= l_du_cu[j, m] - phi_j_sk[s, j, k] + 1)
         # Hàm mục tiêu: Tối đa hóa tổng tốc độ của tất cả các UE
         total_rate = cp.sum(sigma)  # Tổng tốc độ của tất cả các UE
 
