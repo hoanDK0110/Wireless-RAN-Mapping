@@ -1,7 +1,7 @@
 import numpy as np
 import cvxpy as cp
 
-def global_problem(running_mode, phi_i_sk, num_slice, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, max_tx_power_mwatts, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon):
+def global_problem(running_mode, phi_i_sk_rm1, num_slice, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, max_tx_power_mwatts, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon):
     try:
         # Khởi tạo ma trận z_bi_sk (biến nhị phân)
         z_bi_sk = np.empty((num_slice, num_RUs, num_UEs, num_RBs), dtype=object)
@@ -28,13 +28,11 @@ def global_problem(running_mode, phi_i_sk, num_slice, num_UEs, num_RUs, num_DUs,
                         P_bi_sk[s,i,k,b]= cp.Variable()
 
         # Khởi tạo các biến phi_i_sk, phi_j_sk, phi_m_sk
-        if running_mode == 0:
-            del phi_i_sk
-            phi_i_sk = np.empty((num_slice, num_RUs, num_UEs), dtype=object)
-            for s in range(num_slice):
-                for i in range(num_RUs):
-                    for k in range(num_UEs):
-                        phi_i_sk[s,i,k]= cp.Variable(boolean=True)
+        phi_i_sk = np.empty((num_slice, num_RUs, num_UEs), dtype=object)
+        for s in range(num_slice):
+            for i in range(num_RUs):
+                for k in range(num_UEs):
+                    phi_i_sk[s,i,k]= cp.Variable(boolean=True)
         phi_j_sk = np.empty((num_slice, num_DUs, num_UEs), dtype=object)
         for s in range(num_slice):
             for j in range(num_DUs):
@@ -128,6 +126,11 @@ def global_problem(running_mode, phi_i_sk, num_slice, num_UEs, num_RUs, num_DUs,
                 for i in range(num_RUs):
                     temp_ru += phi_i_sk[s,i,k]
                 constraints.append(temp_ru == pi_sk[s,k])
+        if running_mode == 1:
+            for s in range(num_slice):
+                for k in range(num_UEs):
+                    for i in range(num_RUs):
+                        constraints.append(phi_i_sk[s,i,k] == phi_i_sk[s,i,k] * phi_i_sk_rm1[s,i,k])
 
 
         for s in range(num_slice):

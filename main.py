@@ -7,11 +7,11 @@ import time
 import numpy as np
 import csv
 
-num_RUs = 4                             # Số lượng RU (bao gồm RU ở tâm)
-num_DUs = 2                             # Số lượng DU
-num_CUs = 2                             # Số lượng CU
+num_RUs = 5                             # Số lượng RU (bao gồm RU ở tâm)
+num_DUs = 4                             # Số lượng DU
+num_CUs = 4                             # Số lượng CU
 num_UEs = 5                             # Số lượng user
-num_RBs = 3                             # Số lượng của RBs
+num_RBs = 10                             # Số lượng của RBs
 num_antennas = 8                        # Số lượng anntenas
 num_slice = 1
 
@@ -256,6 +256,11 @@ if running_mode == 1:
     for s in range(num_slice):
         for index, value in enumerate(closest_RU_for_UE):
             phi_i_sk_for_nearestRU[s, value, index] = 1
+    for s in range(num_slice):
+        print(f"\nGiá trị của phi_i_sk tại slice {s} (mối liên hệ giữa RU và UE):")
+        for i in range(num_RUs):
+            for k in range(num_UEs):
+                print(phi_i_sk_for_nearestRU[s,i,k])
     pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk = solving.global_problem(running_mode, phi_i_sk_for_nearestRU, num_slice, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, max_tx_power_mwatts, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon)
 
     benchmark.print_results(running_mode,num_slice,num_RUs,num_DUs,num_CUs,num_UEs,pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk)
