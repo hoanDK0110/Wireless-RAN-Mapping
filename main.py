@@ -55,7 +55,7 @@ delta_coordinate = 5                               # Sai số toạ độ của 
 delta_num_UE = 5                                    # Sai số số lượng UE
 
 time_slot = 1                                       # Số lượng time slot trong 1 frame
-num_frame = 1
+num_frame = 5
 
 gamma = 0.8                                         # Hệ số tối ưu
 
@@ -179,7 +179,9 @@ def main():
                 (short_pi_sk, short_z_ib_sk, short_p_ib_sk, short_mu_ib_sk)
             )
             
-        num_UEs = max(num_UEs + np.random.randint(-delta_num_UE, delta_num_UE), 0)
+        # num_UEs = max(num_UEs + np.random.randint(-delta_num_UE, delta_num_UE), 0)
+        num_UEs = max(num_UEs + np.random.randint(-delta_num_UE, delta_num_UE), 1)
+        
     logger.stop()
     logger.write_to_file(f"{filename_prefix}.log")
 
