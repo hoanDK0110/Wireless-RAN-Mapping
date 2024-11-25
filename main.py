@@ -54,7 +54,7 @@ delta_num_UE = 5                                    # Sai số số lượng UE
 delta_coordinate = 5                               # Sai số toạ độ của UE
 delta_num_UE = 5                                    # Sai số số lượng UE
 
-time_slot = 1                                       # Số lượng time slot trong 1 frame
+time_slot = 5                                       # Số lượng time slot trong 1 frame
 num_frame = 5
 
 gamma = 0.8                                         # Hệ số tối ưu
