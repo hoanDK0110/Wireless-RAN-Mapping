@@ -3,6 +3,9 @@ import pickle as pkl
 import gzip as gz
 import datetime
 import time
+from fnmatch import fnmatch
+import shutil
+import os
 
 def extract_optimization_results(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs,pi_sk, z_ib_sk, p_ib_sk, mu_ib_sk, phi_i_sk, phi_j_sk, phi_m_sk):
     """
@@ -80,7 +83,7 @@ def save_object(filename, object):
         )
         
 def load_object(filename):
-    with gz.open(filename, mode='"rb') as f:
+    with gz.open(filename, mode='rb') as f:
         return pkl.load(f)
     
 class Stopwatch:
@@ -152,3 +155,12 @@ class Stopwatch:
                 f.write(
                     self.__row2str(r)+"\n"
                 )
+                
+def RecurseListDir(root: str, pattern: list[str]):
+    f = []
+    for p in pattern:
+        for path, subdirs, files in os.walk(root):
+            for name in files:
+                if fnmatch(name, p):
+                    f.append(os.path.join(path, name))
+    return f
