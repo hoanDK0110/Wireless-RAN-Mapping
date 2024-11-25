@@ -1,7 +1,7 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
-import random
+
 
 def create_topo(num_RUs, num_DUs, num_CUs, P_j_random_list, A_j_random_list, A_m_random_list):
     G = nx.Graph()
@@ -13,11 +13,11 @@ def create_topo(num_RUs, num_DUs, num_CUs, P_j_random_list, A_j_random_list, A_m
 
     # Thêm các nút RU, DU và CU vào đồ thị
     for ru in RUs:
-        G.add_node(ru, type='RU', power = random.choice(P_j_random_list))
+        G.add_node(ru, type='RU', power = np.random.choice(P_j_random_list))
     for du in DUs:
-        G.add_node(du, type='DU', capacity = random.choice(A_j_random_list))
+        G.add_node(du, type='DU', capacity = np.random.choice(A_j_random_list))
     for cu in CUs:
-        G.add_node(cu, type='CU', capacity = random.choice(A_m_random_list))
+        G.add_node(cu, type='CU', capacity = np.random.choice(A_m_random_list))
 
     # Kết nối RUs với DUs (Mỗi DU có thể kết nối với tất cả các RU)
     for du in DUs:

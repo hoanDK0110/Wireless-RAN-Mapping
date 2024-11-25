@@ -1,72 +1,27 @@
 import numpy as np
 
-def extract_optimization_results(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs,pi_sk, z_ib_sk, p_ib_sk, mu_ib_sk, phi_i_sk, phi_j_sk, phi_m_sk):
-    """
-    Trích xuất giá trị của tất cả các biến tối ưu (cvxpy.Variable) sau khi giải quyết bài toán.
+def extract_optimization_results(pi_sk, z_ib_sk, p_ib_sk, mu_ib_sk, phi_i_sk, phi_j_sk, phi_m_sk):
+    def extract_values(array, dtype):
+        shape = array.shape
+        flat_array = np.array([x.value for x in array.flatten()], dtype=dtype)
+        return flat_array.reshape(shape)
 
-    Args:
-    - pi_sk (cvxpy.Variable): Ma trận pi_sk (boolean), với kích thước (num_slices, num_UEs).
-    - z_ib_sk (np.array): Ma trận z_ib_sk (boolean), với kích thước (num_RUs, num_RBs, num_slices, num_UEs).
-    - p_ib_sk (np.array): Ma trận p_ib_sk (liên tục), với kích thước (num_RUs, num_RBs, num_slices, num_UEs).
-    - mu_ib_sk (np.array): Ma trận mu_ib_sk (liên tục), với kích thước (num_RUs, num_RBs, num_slices, num_UEs).
-    - phi_i_sk (np.array): Ma trận phi_i_sk (liên tục), với kích thước (num_RUs, num_slices, num_UEs).
-    - phi_j_sk (np.array): Ma trận phi_j_sk (liên tục), với kích thước (num_RUs, num_slices, num_UEs).
-    - phi_m_sk (np.array): Ma trận phi_m_sk (liên tục), với kích thước (num_RUs, num_RBs, num_slices).
-
-    Returns:
-    - dict: Một từ điển chứa các mảng kết quả của tất cả các biến tối ưu.
-    """
-
-    arr_pi_sk = np.empty((num_slices, num_UEs), dtype=int) 
-    for s in range(num_slices):
-        for k in range(num_UEs):
-            arr_pi_sk[s, k] = pi_sk[s, k].value
-
-    # Extract z_ib_sk (binary)
-    arr_z_ib_sk = np.empty((num_RUs, num_RBs, num_slices, num_UEs), dtype=int)
-    for i in range(num_RUs):
-        for b in range(num_RBs):
-            for s in range(num_slices):
-                for k in range(num_UEs):
-                    arr_z_ib_sk[i, b, s, k] = z_ib_sk[i, b, s, k].value
-
-    # Extract p_ib_sk (continuous)
-    arr_p_ib_sk = np.empty((num_RUs, num_RBs, num_slices, num_UEs), dtype=float)
-    for i in range(num_RUs):
-        for b in range(num_RBs):
-            for s in range(num_slices):
-                for k in range(num_UEs):
-                    p_ib_sk[i, b, s, k] = p_ib_sk[i, b, s, k].value
-
-    # Extract mu_ib_sk (continuous)
-    arr_mu_ib_sk = np.empty((num_RUs, num_RBs, num_slices, num_UEs), dtype=float)
-    for i in range(num_RUs):
-        for b in range(num_RBs):
-            for s in range(num_slices):
-                for k in range(num_UEs):
-                    arr_mu_ib_sk[i, b, s, k] = mu_ib_sk[i, b, s, k].value
-
-    # Extract phi_i_sk
-    arr_phi_i_sk = np.empty((num_RUs, num_slices, num_UEs), dtype=int)
-    for i in range(num_RUs):
-        for s in range(num_slices):
-            for k in range(num_UEs):
-                arr_phi_i_sk[i, s, k] = phi_i_sk[i, s, k].value
-
-    # Extract phi_j_sk 
-    arr_phi_j_sk = np.empty((num_DUs, num_slices, num_UEs), dtype=int)
-    for j in range(num_DUs):
-        for s in range(num_slices):
-            for k in range(num_UEs):
-                arr_phi_j_sk[j, s, k] = phi_j_sk[j, s, k].value
-
-    # Extract phi_m_sk 
-    arr_phi_m_sk = np.empty((num_CUs, num_slices, num_UEs), dtype=int)
-    for m in range(num_CUs):
-        for s in range(num_slices):
-            for k in range(num_UEs):
-                arr_phi_m_sk[m, s, k] = phi_m_sk[m, s, k].value
+    arr_pi_sk = extract_values(pi_sk, int)
+    arr_z_ib_sk = extract_values(z_ib_sk, int)
+    arr_p_ib_sk = extract_values(p_ib_sk, float)
+    arr_mu_ib_sk = extract_values(mu_ib_sk, float)
+    arr_phi_i_sk = extract_values(phi_i_sk, int)
+    arr_phi_j_sk = extract_values(phi_j_sk, int)
+    arr_phi_m_sk = extract_values(phi_m_sk, int)
 
     return arr_pi_sk, arr_z_ib_sk, arr_p_ib_sk, arr_mu_ib_sk, arr_phi_i_sk, arr_phi_j_sk, arr_phi_m_sk
 
 
+def generate_new_num_UEs(num_UEs, delta_num_UE):
+    # Tính sai số ngẫu nhiên trong khoảng [-delta_num_UE, delta_num_UE]
+    delta = np.random.randint(-delta_num_UE, delta_num_UE)
+
+    # Tính số lượng UE mới
+    new_num_UEs = num_UEs + delta
+    # Đảm bảo số lượng UE không âm
+    return max(new_num_UEs, 0)

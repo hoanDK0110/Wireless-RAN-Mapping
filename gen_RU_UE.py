@@ -2,7 +2,7 @@ import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-import random
+
 
 def gen_coordinates_RU(num_RUs, radius):
     circle_RU_out = radius * 0.65
@@ -13,19 +13,15 @@ def gen_coordinates_RU(num_RUs, radius):
     return coordinates_RU
 
 def gen_coordinates_UE(num_UEs, radius_in, radius_out):
-    np.random.seed(1)
     angles = np.random.uniform(0, 2 * np.pi, num_UEs)
     r = np.random.uniform(radius_in, radius_out, num_UEs)
-    
     x = r * np.cos(angles)
     y = r * np.sin(angles)
-    
     coordinates_UE = list(zip(x, y))  
     return coordinates_UE
 
 def adjust_coordinates_UE(coordinates_UE, delta_coordinate):
     # Khởi tạo seed cho ngẫu nhiên để kết quả có thể tái tạo
-    np.random.seed(1)
     new_coordinates_UE = []
     
     for x, y in coordinates_UE:
@@ -61,33 +57,33 @@ def create_and_assign_slices(num_UEs, slices, D_j, D_m, R_min):
     # Tạo và gán slice ngẫu nhiên cho từng UE
     for _ in range(num_UEs):
         # Chọn ngẫu nhiên loại slice
-        slice_type = random.choice(slices)
+        slice_type = np.random.choice(slices)
         
         if slice_type == "eMBB":
             # Cấu hình slice eMBB
             slice_config = {
                 "name": "eMBB",
-                "R_min": random.choice(R_min), 
-                "D_j": random.choice(D_j),      
-                "D_m": random.choice(D_m)       
+                "R_min": np.random.choice(R_min), 
+                "D_j": np.random.choice(D_j),      
+                "D_m": np.random.choice(D_m)       
             }
         
         elif slice_type == "ULLRC":
             # Cấu hình slice ULLRC
             slice_config = {
                 "name": "ULLRC",
-                "R_min": random.choice(R_min) * 2,   
-                "D_j": random.choice(D_j),         
-                "D_m": random.choice(D_m)        
+                "R_min": np.random.choice(R_min) * 2,   
+                "D_j": np.random.choice(D_j),         
+                "D_m": np.random.choice(D_m)        
             }
 
         else: 
             # Cấu hình slice mMTC
             slice_config = {
                 "name": "mMTC",
-                "R_min": random.choice(R_min) * 0.5,   
-                "D_j": random.choice(D_j),        
-                "D_m": random.choice(D_m)             
+                "R_min": np.random.choice(R_min) * 0.5,   
+                "D_j": np.random.choice(D_j),        
+                "D_m": np.random.choice(D_m)             
             }
         
         # Thêm từng thuộc tính vào danh sách tương ứng
