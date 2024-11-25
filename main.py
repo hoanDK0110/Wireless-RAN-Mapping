@@ -7,11 +7,11 @@ import time
 import numpy as np
 import csv
 
-num_RUs = 5                             # Số lượng RU (bao gồm RU ở tâm)
-num_DUs = 4                             # Số lượng DU
-num_CUs = 4                             # Số lượng CU
+num_RUs = 4                             # Số lượng RU (bao gồm RU ở tâm)
+num_DUs = 2                             # Số lượng DU
+num_CUs = 2                             # Số lượng CU
 num_UEs = 5                             # Số lượng user
-num_RBs = 10                             # Số lượng của RBs
+num_RBs = 3                             # Số lượng của RBs
 num_antennas = 8                        # Số lượng anntenas
 num_slice = 1
 
