@@ -37,10 +37,19 @@ def short_term(num_slices, num_UEs, num_RUs, num_RBs, rb_bandwidth, P_i, gain, R
                 for k in range(num_UEs):
                     short_phi_i_sk[i, s, k] = cp.Variable(boolean=True, name=f"short_phi_i_sk({i}, {s}, {k})")
         
+        # Khởi tạo các biến nhị phân: phi_i_sk, phi_j_sk, phi_m_sk
+        short_phi_i_sk = np.empty((num_RUs, num_slices, num_UEs), dtype=object)
+        for i in range(num_RUs):
+            for s in range(num_slices):
+                for k in range(num_UEs):
+                    short_phi_i_sk[i, s, k] = cp.Variable(boolean=True, name=f"short_phi_i_sk({i}, {s}, {k})")
+        
         # Biến tối ưu cho việc phân bổ
         short_pi_sk = cp.Variable((num_slices, num_UEs), boolean=True, name="short_pi_sk")  # Tối ưu số lượng UE
 
         # Hàm mục tiêu: Tối ưu tổng công suất phân bổ
+        objective = cp.Maximize(cp.sum([short_mu_ib_sk[i, b, s, k] for i in range(num_RUs) for b in range(num_RBs) for s in range(num_slices) for k in range(num_UEs)]))
+        #objective = cp.Maximize(cp.sum(short_pi_sk))
         objective = cp.Maximize(cp.sum([short_mu_ib_sk[i, b, s, k] for i in range(num_RUs) for b in range(num_RBs) for s in range(num_slices) for k in range(num_UEs)]))
         #objective = cp.Maximize(cp.sum(short_pi_sk))
 
@@ -50,10 +59,13 @@ def short_term(num_slices, num_UEs, num_RUs, num_RBs, rb_bandwidth, P_i, gain, R
         # Ràng buộc: Chỉ 1 RB được sử dụng cho 1 UE tại 1 RU
         for b in range(num_RBs):
             constraints.append(cp.sum([short_z_ib_sk[i, b, s, k] for s in range(num_slices) for k in range(num_UEs) for i in range(num_RUs)]) <= 1)
+        for b in range(num_RBs):
+            constraints.append(cp.sum([short_z_ib_sk[i, b, s, k] for s in range(num_slices) for k in range(num_UEs) for i in range(num_RUs)]) <= 1)
 
         # Ràng buộc: Đảm bảo QoS (Data rate)
         for s in range(num_slices):
             for k in range(num_UEs):
+                R_sk = cp.sum([rb_bandwidth * cp.log(1 + cp.sum([gain[i, b, s, k] * short_mu_ib_sk[i, b, s, k] for i in range(num_RUs)])) / np.log(2) for b in range(num_RBs)])
                 R_sk = cp.sum([rb_bandwidth * cp.log(1 + cp.sum([gain[i, b, s, k] * short_mu_ib_sk[i, b, s, k] for i in range(num_RUs)])) / np.log(2) for b in range(num_RBs)])
                 constraints.append(R_sk >= R_min * short_pi_sk[s, k])
 
@@ -61,16 +73,42 @@ def short_term(num_slices, num_UEs, num_RUs, num_RBs, rb_bandwidth, P_i, gain, R
         for i in range(num_RUs):
             total_power = cp.sum([short_mu_ib_sk[i, b, s, k] for b in range(num_RBs) for k in range(num_UEs) for s in range(num_slices)])
             constraints.append(total_power <= P_i[i])
+        for i in range(num_RUs):
+            total_power = cp.sum([short_mu_ib_sk[i, b, s, k] for b in range(num_RBs) for k in range(num_UEs) for s in range(num_slices)])
+            constraints.append(total_power <= P_i[i])
 
+        # Ràng buộc bổ sung: Chuyển đổi tích sang tổng (mu_ib_sk = z_ib_sk * p_ib_sk)
         # Ràng buộc bổ sung: Chuyển đổi tích sang tổng (mu_ib_sk = z_ib_sk * p_ib_sk)
         for s in range(num_slices):
             for i in range(num_RUs):
                 for b in range(num_RBs):
                     for k in range(num_UEs):
                         constraints.append(short_mu_ib_sk[i, b, s, k] <= P_i[i] * short_z_ib_sk[i, b, s, k])  
+                for b in range(num_RBs):
+                    for k in range(num_UEs):
+                        constraints.append(short_mu_ib_sk[i, b, s, k] <= P_i[i] * short_z_ib_sk[i, b, s, k])  
                         constraints.append(short_mu_ib_sk[i, b, s, k] >= short_p_ib_sk[i, b, s, k] - P_i[i] * (1 - short_z_ib_sk[i, b, s, k]))
                         constraints.append(short_mu_ib_sk[i, b, s, k] <= short_p_ib_sk[i, b, s, k])  
+                        constraints.append(short_mu_ib_sk[i, b, s, k] <= short_p_ib_sk[i, b, s, k])  
 
+        # Ràng buộc: Chuyển đổi short_z_ib_sk sang short_phi_i_sk
+        for s in range(num_slices):
+            for i in range(num_RUs):
+                for k in range(num_UEs):
+                    avg_z = (1 / num_RBs) * cp.sum([short_z_ib_sk[i, b, s, k] for b in range(num_RBs)])
+                    constraints.append(avg_z <= short_phi_i_sk[i, s, k])
+                    constraints.append(short_phi_i_sk[i, s, k] <= avg_z + (1 - epsilon))
+
+        # Ràng buộc: Chuyển đổi short_z_ib_sk == arr_phi_i_sk
+        for s in range(num_slices):
+            for i in range(num_RUs):
+                for k in range(num_UEs):
+                    constraints.append(short_phi_i_sk[i, s, k] == arr_phi_i_sk[i, s, k])
+
+        # Ràng buộc: Chuyển đổi short_pi_sk == arr_pi_sk
+        for s in range(num_slices):
+            for k in range(num_UEs):
+                constraints.append(short_pi_sk[s, k] == arr_pi_sk[s, k])
         # Ràng buộc: Chuyển đổi short_z_ib_sk sang short_phi_i_sk
         for s in range(num_slices):
             for i in range(num_RUs):
@@ -161,11 +199,14 @@ def long_term(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, P_i, rb_b
         pi_sk = cp.Variable((num_slices, num_UEs), boolean=True, name="obj") 
 
         objective = cp.Maximize(gamma * cp.sum(pi_sk) + (1 - gamma) * cp.sum([mu_ib_sk[i, b, s, k] for i in range(num_RUs) for b in range(num_RBs) for s in range(num_slices) for k in range(num_UEs)]) * 1e-4)
+        objective = cp.Maximize(gamma * cp.sum(pi_sk) + (1 - gamma) * cp.sum([mu_ib_sk[i, b, s, k] for i in range(num_RUs) for b in range(num_RBs) for s in range(num_slices) for k in range(num_UEs)]) * 1e-4)
 
         # Danh sách ràng buộc
         constraints = []
 
         # Ràng buộc: Chỉ 1 RB được sử dụng cho 1 UE tại 1 RU
+        for b in range(num_RBs):
+            constraints.append(cp.sum([z_ib_sk[i, b, s, k] for s in range(num_slices) for k in range(num_UEs) for i in range(num_RUs)]) <= 1)
         for b in range(num_RBs):
             constraints.append(cp.sum([z_ib_sk[i, b, s, k] for s in range(num_slices) for k in range(num_UEs) for i in range(num_RUs)]) <= 1)
 
@@ -180,13 +221,22 @@ def long_term(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, P_i, rb_b
         for i in range(num_RUs):
             total_power = cp.sum([mu_ib_sk[i, b, s, k] for b in range(num_RBs) for k in range(num_UEs) for s in range(num_slices)])
             constraints.append(total_power <= P_i[i])
+        for i in range(num_RUs):
+            total_power = cp.sum([mu_ib_sk[i, b, s, k] for b in range(num_RBs) for k in range(num_UEs) for s in range(num_slices)])
+            constraints.append(total_power <= P_i[i])
 
         # Ràng buộc: Tổng tài nguyên của slice sử dụng DU <= tài nguyên có sẵn tại DU
         for j in range(num_DUs):
             total_du = cp.sum([phi_j_sk[j, s, k] * D_j[k] for s in range(num_slices) for k in range(num_UEs)])
             constraints.append(total_du <= A_j[j])
+        for j in range(num_DUs):
+            total_du = cp.sum([phi_j_sk[j, s, k] * D_j[k] for s in range(num_slices) for k in range(num_UEs)])
+            constraints.append(total_du <= A_j[j])
 
         # Ràng buộc: Tổng tài nguyên của slice sử dụng CU <= tài nguyên có sẵn tại CU
+        for m in range(num_CUs):
+            total_cu = cp.sum([phi_m_sk[m, s, k] * D_m[k] for s in range(num_slices) for k in range(num_UEs)])
+            constraints.append(total_cu <= A_m[m])
         for m in range(num_CUs):
             total_cu = cp.sum([phi_m_sk[m, s, k] * D_m[k] for s in range(num_slices) for k in range(num_UEs)])
             constraints.append(total_cu <= A_m[m])
@@ -254,3 +304,5 @@ def long_term(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, P_i, rb_b
     except Exception as e:
         print(f'An error occurred: {e}')
         return None, None, None, None, None, None, None
+
+

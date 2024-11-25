@@ -18,6 +18,7 @@ num_UEs = 3                             # Số lượng user
 num_RBs = 3                             # Số lượng của RBs
 num_antennas = 8                        # Số lượng anntenas
 num_slices = 1                          # Số lượng loại dịch vụ
+num_slices = 1                          # Số lượng loại dịch vụ
 
 radius_in = 100                         # Bán kính vòng tròn trong (km)
 radius_out = 1000                       # Bán kính vòng tròn ngoài (km)
@@ -50,6 +51,8 @@ R_min_random_list = [1e6]                               # Các loại yêu cầu
 
 delta_coordinate = 5                               # Sai số toạ độ của UE
 delta_num_UE = 5                                    # Sai số số lượng UE
+delta_coordinate = 5                               # Sai số toạ độ của UE
+delta_num_UE = 5                                    # Sai số số lượng UE
 
 time_slot = 1                                       # Số lượng time slot trong 1 frame
 num_frame = 1
@@ -68,6 +71,7 @@ filename_solution = f"{filename_prefix}_solution"
 
 # ===========================================
 # ============== Main =======================
+# ============== Main =======================
 # ===========================================
 
 def main():
@@ -83,6 +87,8 @@ def main():
     # Tạo mạng RAN
     G = RAN_topo.create_topo(num_RUs, num_DUs, num_CUs, P_j_random_list, A_j_random_list, A_m_random_list)
 
+    # Danh sách tập các liên kết trong mạng
+    l_ru_du, l_du_cu = RAN_topo.get_links(G)
     # Danh sách tập các liên kết trong mạng
     l_ru_du, l_du_cu = RAN_topo.get_links(G)
 
@@ -116,7 +122,11 @@ def main():
 
         # Ma trận khoảng cách của UE - RU
         distances_RU_UE = gen_RU_UE.calculate_distances(coordinates_RU, coordinates_UE, num_RUs, num_UEs)
+        # Ma trận khoảng cách của UE - RU
+        distances_RU_UE = gen_RU_UE.calculate_distances(coordinates_RU, coordinates_UE, num_RUs, num_UEs)
 
+        # Tính gain cho mạng
+        gain = wireless.channel_gain(distances_RU_UE, num_slices, num_RUs, num_UEs, num_RBs, num_antennas, path_loss_ref, path_loss_exp, noise_power_watts)
         # Tính gain cho mạng
         gain = wireless.channel_gain(distances_RU_UE, num_slices, num_RUs, num_UEs, num_RBs, num_antennas, path_loss_ref, path_loss_exp, noise_power_watts)
 
@@ -148,7 +158,12 @@ def main():
             # Tính gain cho kênh truyền thay đổi
             short_gain = wireless.channel_gain(short_distances_RU_UE, num_slices, num_RUs, num_UEs, num_RBs, num_antennas, 
                 path_loss_ref, path_loss_exp, noise_power_watts)
+            # Tính gain cho kênh truyền thay đổi
+            short_gain = wireless.channel_gain(short_distances_RU_UE, num_slices, num_RUs, num_UEs, num_RBs, num_antennas, 
+                path_loss_ref, path_loss_exp, noise_power_watts)
 
+            # Chuyển kết quả thành mảng
+            arr_pi_sk, arr_z_ib_sk, arr_p_ib_sk, arr_mu_ib_sk, arr_phi_i_sk, arr_phi_j_sk, arr_phi_m_sk = other_function.extract_optimization_results(pi_sk, z_ib_sk, p_ib_sk, mu_ib_sk, phi_i_sk, phi_j_sk, phi_m_sk)
             # Chuyển kết quả thành mảng
             arr_pi_sk, arr_z_ib_sk, arr_p_ib_sk, arr_mu_ib_sk, arr_phi_i_sk, arr_phi_j_sk, arr_phi_m_sk = other_function.extract_optimization_results(pi_sk, z_ib_sk, p_ib_sk, mu_ib_sk, phi_i_sk, phi_j_sk, phi_m_sk)
 
