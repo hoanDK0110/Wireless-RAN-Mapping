@@ -1,6 +1,7 @@
 import numpy as np
 import cvxpy as cp
 import time
+import traceback as tb
 
 SOLVER = cp.MOSEK
 
@@ -143,11 +144,17 @@ def short_term(num_slices, num_UEs, num_RUs, num_RBs, rb_bandwidth, P_i, gain, R
         # Trả về kết quả tối ưu công suất và ánh xạ RB
         return short_pi_sk, short_z_ib_sk, short_p_ib_sk, short_mu_ib_sk
 
-    except cp.SolverError:
-        print('Solver error: non_feasible')
+    except cp.SolverError as e:
+        if logger is None:
+            print(f'Solver error: {e}')
+        else:
+            logger.add(f"[solver] ERROR: {e}")
         return None, None, None, None
     except Exception as e:
-        print(f'An error occurred: {e}')
+        if logger is None:
+            print(f'An error occurred: {e}')
+        else:
+            logger.add(f"[solver] OTHER_ERROR: {e}")
         return None, None, None, None
 
 
@@ -298,11 +305,17 @@ def long_term(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, P_i, rb_b
         
         return pi_sk, z_ib_sk, p_ib_sk, mu_ib_sk, phi_i_sk, phi_j_sk, phi_m_sk
 
-    except cp.SolverError:
-        print('Solver error: non_feasible')
+    except cp.SolverError as e:
+        if logger is None:
+            print(f'Solver error: {e}')
+        else:
+            logger.add(f"[solver] ERROR: {e}")
         return None, None, None, None, None, None, None
     except Exception as e:
-        print(f'An error occurred: {e}')
+        if logger is None:
+            print(f'Solver error: {e}')
+        else:
+            logger.add(f"[solver] OTHER_ERROR: {e}")
         return None, None, None, None, None, None, None
 
 
