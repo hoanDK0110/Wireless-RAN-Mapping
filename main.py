@@ -71,7 +71,6 @@ filename_solution = f"{filename_prefix}_solution"
 
 # ===========================================
 # ============== Main =======================
-# ============== Main =======================
 # ===========================================
 
 def main():
@@ -122,13 +121,13 @@ def main():
 
         # Ma trận khoảng cách của UE - RU
         distances_RU_UE = gen_RU_UE.calculate_distances(coordinates_RU, coordinates_UE, num_RUs, num_UEs)
-        # Ma trận khoảng cách của UE - RU
-        distances_RU_UE = gen_RU_UE.calculate_distances(coordinates_RU, coordinates_UE, num_RUs, num_UEs)
 
         # Tính gain cho mạng
         gain = wireless.channel_gain(distances_RU_UE, num_slices, num_RUs, num_UEs, num_RBs, num_antennas, path_loss_ref, path_loss_exp, noise_power_watts)
-        # Tính gain cho mạng
-        gain = wireless.channel_gain(distances_RU_UE, num_slices, num_RUs, num_UEs, num_RBs, num_antennas, path_loss_ref, path_loss_exp, noise_power_watts)
+        other_function.save_object(
+            f"{filename_solution}_gain_f{f}.pkl.gz",
+            (gain)
+        )
 
         # Gọi làm long-term: giải bài toán toàn cục
         pi_sk, z_ib_sk, p_ib_sk, mu_ib_sk, phi_i_sk, phi_j_sk, phi_m_sk = solving.long_term(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, P_i, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, logger)
@@ -158,12 +157,11 @@ def main():
             # Tính gain cho kênh truyền thay đổi
             short_gain = wireless.channel_gain(short_distances_RU_UE, num_slices, num_RUs, num_UEs, num_RBs, num_antennas, 
                 path_loss_ref, path_loss_exp, noise_power_watts)
-            # Tính gain cho kênh truyền thay đổi
-            short_gain = wireless.channel_gain(short_distances_RU_UE, num_slices, num_RUs, num_UEs, num_RBs, num_antennas, 
-                path_loss_ref, path_loss_exp, noise_power_watts)
+            other_function.save_object(
+                f"{filename_solution}_gain_f{f}_t{t}.pkl.gz",
+                (short_gain)
+            )
 
-            # Chuyển kết quả thành mảng
-            arr_pi_sk, arr_z_ib_sk, arr_p_ib_sk, arr_mu_ib_sk, arr_phi_i_sk, arr_phi_j_sk, arr_phi_m_sk = other_function.extract_optimization_results(pi_sk, z_ib_sk, p_ib_sk, mu_ib_sk, phi_i_sk, phi_j_sk, phi_m_sk)
             # Chuyển kết quả thành mảng
             arr_pi_sk, arr_z_ib_sk, arr_p_ib_sk, arr_mu_ib_sk, arr_phi_i_sk, arr_phi_j_sk, arr_phi_m_sk = other_function.extract_optimization_results(pi_sk, z_ib_sk, p_ib_sk, mu_ib_sk, phi_i_sk, phi_j_sk, phi_m_sk)
 
