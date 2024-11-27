@@ -1,12 +1,23 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
-def chart1():
-    # Đọc dữ liệu từ tệp
-    used_power = np.load("used_power.npy")
-    unused_power = np.load("unused_power.npy")
-    used_rb = np.load("used_rb.npy")
-    unused_rb = np.load("unused_rb.npy")
+# Đường dẫn tới thư mục kết quả
+results_dir = "results_running_mode_0"
+
+# Hàm để tải dữ liệu từ file .npy trong thư mục kết quả
+def load_data_from_npy(filename):
+    file_path = os.path.join(results_dir, filename)
+    return np.load(file_path)
+
+def chart1(results_dir):
+    # Đọc dữ liệu sử dụng năng lượng từ các file .npy
+    used_power = load_data_from_npy("used_power.npy")
+    unused_power = load_data_from_npy("unused_power.npy")
+    
+    # Đọc dữ liệu sử dụng RB từ file .npy
+    used_rb = load_data_from_npy("used_rb.npy")
+    unused_rb = load_data_from_npy("unused_rb.npy")
 
     categories_power = ['RU1', 'RU2', 'RU3', 'RU4']
     categories_rb = ['RB']
@@ -42,12 +53,12 @@ def chart1():
     plt.tight_layout()
     plt.show()
     
-def chart2():
-    # Đọc dữ liệu từ tệp
-    used_du = np.load("used_du.npy")
-    unused_du = np.load("unused_du.npy")
-    used_cu = np.load("used_cu.npy")
-    unused_cu = np.load("unused_cu.npy")
+def chart2(results_dir):
+    # Đọc dữ liệu sử dụng DU và CU từ các file .npy
+    used_du = load_data_from_npy("used_du.npy")
+    unused_du = load_data_from_npy("unused_du.npy")
+    used_cu = load_data_from_npy("used_cu.npy")
+    unused_cu = load_data_from_npy("unused_cu.npy")
 
     categories_du = ['DU1', 'DU2']
     categories_cu = ['CU1', 'CU2']
@@ -79,6 +90,14 @@ def chart2():
     plt.tight_layout()
     plt.show()
 
-# Gọi hàm chart1 để vẽ
-chart1()
-chart2()
+def plot_charts(running_mode):
+    if running_mode == 0:
+        results_dir = "results_running_mode_0"
+    elif running_mode == 1:
+        results_dir = "results_running_mode_1"
+    else:
+        raise ValueError("Invalid running_mode value")
+
+# Gọi hàm chart1 và chart2 để vẽ
+chart1(results_dir)
+chart2(results_dir)

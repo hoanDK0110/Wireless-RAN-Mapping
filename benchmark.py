@@ -1,4 +1,4 @@
-def print_results(num_slice,num_RUs,num_DUs,num_CUs,num_UEs,pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk):
+def print_results(running_mode,num_slice,num_RUs,num_DUs,num_CUs,num_UEs,pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk):
     print("Kết quả tối ưu hóa:")
     
     # In ra số lượng UE được chấp nhận
@@ -16,11 +16,12 @@ def print_results(num_slice,num_RUs,num_DUs,num_CUs,num_UEs,pi_sk, z_bi_sk, phi_
                     print(f"z_bi_sk[{s}, {i}, {k}, {b}] = {z_bi_sk[s, i, k, b].value}")
 
     # In ra mối liên hệ giữa RU và UE
-    for s in range(num_slice):
-        print(f"\nGiá trị của phi_i_sk tại slice {s} (mối liên hệ giữa RU và UE):")
-        for i in range(num_RUs):
-            for k in range(num_UEs):
-                print(phi_i_sk[s,i,k].value)
+    if running_mode == 0:
+        for s in range(num_slice):
+            print(f"\nGiá trị của phi_i_sk tại slice {s} (mối liên hệ giữa RU và UE):")
+            for i in range(num_RUs):
+                for k in range(num_UEs):
+                    print(phi_i_sk[s,i,k].value)
 
     # In ra mối liên hệ giữa DU và UE
     for s in range(num_slice):
