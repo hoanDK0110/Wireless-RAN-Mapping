@@ -33,6 +33,24 @@ def generate_new_num_UEs(num_UEs, delta_num_UE):
     # Đảm bảo số lượng UE không âm
     return max(new_num_UEs, 0)
 
+def mapping_RU_UE(slice_mapping, distances_RU_UE):
+    num_RU, num_UEs = distances_RU_UE.shape
+    num_slices, _ = slice_mapping.shape
+    
+    # Khởi tạo ma trận nearest_phi_i_sk
+    nearest_phi_i_sk = np.zeros((num_RU, num_slices, num_UEs), dtype=int)
+    
+    for j in range(num_UEs):  # Duyệt qua từng UE
+        for k in range(num_slices):  # Duyệt qua từng slice
+            if slice_mapping[k, j] == 1:  # Kiểm tra UE thuộc slice nào
+                # Tìm RU gần nhất với UE j
+                nearest_RU = np.argmin(distances_RU_UE[:, j])
+                # Đánh dấu ánh xạ trong nearest_phi_i_sk
+                nearest_phi_i_sk[nearest_RU, k, j] = 1
+    
+    return nearest_phi_i_sk
+
+
 def save_object(filename, object):
     with gz.open(filename, mode="wb", compresslevel=9) as f:
         f.write(

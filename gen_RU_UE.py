@@ -47,7 +47,7 @@ def calculate_distances(coordinates_RU, coordinates_UE, num_RUs, num_UEs):
             distances_RU_UE[i, j] = np.sqrt((x_RU - x_UE)**2 + (y_RU - y_UE)**2)
     return distances_RU_UE
 
-def create_and_assign_slices(num_UEs, slices, D_j, D_m, R_min):  
+def create_and_assign_slices(num_UEs, num_slices, D_j, D_m, R_min):  
     # Khởi tạo các danh sách để lưu trữ từng thuộc tính
     names = []
     R_min_values = []
@@ -57,7 +57,7 @@ def create_and_assign_slices(num_UEs, slices, D_j, D_m, R_min):
     # Tạo và gán slice ngẫu nhiên cho từng UE
     for _ in range(num_UEs):
         # Chọn ngẫu nhiên loại slice
-        slice_type = np.random.choice(slices)
+        slice_type = np.random.choice(num_slices)
         
         if slice_type == "eMBB":
             # Cấu hình slice eMBB
@@ -76,7 +76,7 @@ def create_and_assign_slices(num_UEs, slices, D_j, D_m, R_min):
                 "D_j": np.random.choice(D_j),         
                 "D_m": np.random.choice(D_m)        
             }
-
+ 
         else: 
             # Cấu hình slice mMTC
             slice_config = {
@@ -130,3 +130,29 @@ def plot_save_network(coordinates_RU, coordinates_UE, radius_in, radius_out):
     plt.show(block=False)
     plt.pause(5)
     plt.close()
+
+
+def gen_mapping_and_requirements(num_UEs, num_slices, D_j_random_list, D_m_random_list, R_min_random_list):
+    # Khởi tạo ma trận ánh xạ với tất cả giá trị là 0
+    slice_mapping = np.zeros((num_slices, num_UEs), dtype=int)
+    
+    # Danh sách để lưu yêu cầu tài nguyên cho mỗi UE
+    D_j_list = []
+    D_m_list = []
+    R_min_list = []
+    
+    if num_slices == 1:
+        # Nếu chỉ có một slice, tất cả UE được ánh xạ vào slice 0
+        slice_mapping[0, :] = 1
+    else:
+        for ue in range(num_UEs):
+            # Mỗi UE chỉ được yêu cầu một loại slice, chọn ngẫu nhiên một slice
+            chosen_slice = np.random.randint(0, num_slices)
+            slice_mapping[chosen_slice][ue] = 1
+            
+    # Tạo ngẫu nhiên các giá trị D_j, D_m, R_min cho mỗi UE
+    D_j_list = np.random.choice(D_j_random_list, size=num_UEs).tolist()
+    D_m_list = np.random.choice(D_m_random_list, size=num_UEs).tolist()
+    R_min_list = np.random.choice(R_min_random_list, size=num_UEs).tolist()
+    
+    return slice_mapping, D_j_list, D_m_list, R_min_list

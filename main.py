@@ -11,18 +11,16 @@ import os
 # =======================================================
 # ============== Tham số mô phỏng =======================
 # =======================================================
-num_RUs = 3                             # Số lượng RU (bao gồm RU ở tâm)
-num_DUs = 2                             # Số lượng DU
-num_CUs = 2                             # Số lượng CU
-num_UEs = 3                             # Số lượng user
-num_RBs = 3                             # Số lượng của RBs
+num_RUs = 4                             # Số lượng RU (bao gồm RU ở tâm)
+num_DUs = 3                             # Số lượng DU
+num_CUs = 3                             # Số lượng CU
+num_UEs = 5                             # Tổng số lượng user cho tất dịch vụ (eMBB, mMTC, URLLC)
+num_RBs = 5                             # Số lượng của RBs
 num_antennas = 8                        # Số lượng anntenas
-num_slices = 1                          # Số lượng loại dịch vụ
 num_slices = 1                          # Số lượng loại dịch vụ
 
 radius_in = 100                         # Bán kính vòng tròn trong (km)
 radius_out = 1000                       # Bán kính vòng tròn ngoài (km)
-capacity_node = 100                     # Tài nguyên node
 
 rb_bandwidth = 180e3                                # Băng thông của mỗi RBs (Hz)
 # Maximum transmission power
@@ -36,21 +34,20 @@ P_j_random_list = [max_tx_power_mwatts]
 
 path_loss_ref = 128.1
 path_loss_exp = 37.6
+
 if num_slices == 1:
     slices = ["eMBB"]                               # Tập các loại slice
 else:
     slices = ["eMBB", "ULLRC", "mMTC"]              # Tập các loại slice
 
-D_j_random_list = [5]                                  # Các loại yêu cầu tài nguyên của node DU j 
-D_m_random_list = [5]                                  # Các loại yêu cầu tài nguyên của node CU m 
+D_j_random_list = [5]                                   # Các loại yêu cầu tài nguyên của node DU j 
+D_m_random_list = [5]                                   # Các loại yêu cầu tài nguyên của node CU m 
 
-A_j_random_list = [50]                       # Các loại tài nguyên của node DU j
-A_m_random_list = [50]                       # Các loại tài nguyên của node CU m
+A_j_random_list = [50]                                  # Các loại tài nguyên của node DU j
+A_m_random_list = [50]                                  # Các loại tài nguyên của node CU m
 
 R_min_random_list = [1e6]                               # Các loại yêu cầu Data rate ngưỡng
 
-delta_coordinate = 5                               # Sai số toạ độ của UE
-delta_num_UE = 5                                    # Sai số số lượng UE
 delta_coordinate = 5                               # Sai số toạ độ của UE
 delta_num_UE = 5                                    # Sai số số lượng UE
 
@@ -110,7 +107,7 @@ def main():
         logger.add(f"[solve] Solve frame {f+1} of {num_frame}: Preparation")
         
         # Tạo yêu cầu từng UE
-        names, R_min, D_j, D_m = gen_RU_UE.create_and_assign_slices(num_UEs, slices, D_j_random_list, D_m_random_list, R_min_random_list)
+        slice_mapping, D_j, D_m, R_min = gen_RU_UE.gen_mapping_and_requirements(num_UEs, num_slices, D_j_random_list, D_m_random_list, R_min_random_list)
 
         # Tạo toạ độ UE
         coordinates_UE = gen_RU_UE.gen_coordinates_UE(num_UEs, radius_in, radius_out)
@@ -118,6 +115,7 @@ def main():
             f"{filename_prefix}_coords_UEs_f{f}.pkl.gz",
             coordinates_UE
         )
+
 
         # Ma trận khoảng cách của UE - RU
         distances_RU_UE = gen_RU_UE.calculate_distances(coordinates_RU, coordinates_UE, num_RUs, num_UEs)
@@ -130,7 +128,7 @@ def main():
         )
 
         # Gọi làm long-term: giải bài toán toàn cục
-        pi_sk, z_ib_sk, p_ib_sk, mu_ib_sk, phi_i_sk, phi_j_sk, phi_m_sk = solving.long_term(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, P_i, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, logger)
+        pi_sk, z_ib_sk, p_ib_sk, mu_ib_sk, phi_i_sk, phi_j_sk, phi_m_sk, total_R_sk = solving.long_term(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, P_i, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, slice_mapping)
 
         # In ra nghiệm
         if (pi_sk is None):
@@ -139,7 +137,7 @@ def main():
         logger.add(f"[solve] Solve frame {f+1} of {num_frame}: Long-term save")
         other_function.save_object(
             f"{filename_solution}_longterm_f{f}.pkl.gz",
-            (pi_sk, z_ib_sk, p_ib_sk, mu_ib_sk, phi_i_sk, phi_j_sk, phi_m_sk)
+            (pi_sk, z_ib_sk, p_ib_sk, mu_ib_sk, phi_i_sk, phi_j_sk, phi_m_sk, total_R_sk)
         )
         logger.add(f"[solve] Solve frame {f+1} of {num_frame}: Short-term")
 
@@ -166,26 +164,16 @@ def main():
             arr_pi_sk, arr_z_ib_sk, arr_p_ib_sk, arr_mu_ib_sk, arr_phi_i_sk, arr_phi_j_sk, arr_phi_m_sk = other_function.extract_optimization_results(pi_sk, z_ib_sk, p_ib_sk, mu_ib_sk, phi_i_sk, phi_j_sk, phi_m_sk)
 
             # Tối ưu Short-term
-            short_pi_sk, short_z_ib_sk, short_p_ib_sk, short_mu_ib_sk = solving.short_term(num_slices, num_UEs, num_RUs, num_RBs, rb_bandwidth, P_i, gain, R_min, arr_pi_sk, arr_phi_i_sk, epsilon, logger)
+            short_pi_sk, short_z_ib_sk, short_p_ib_sk, short_mu_ib_sk, short_total_R_sk = solving.short_term(num_slices, num_UEs, num_RUs, num_RBs, rb_bandwidth, P_i, gain, R_min, epsilon,  arr_pi_sk, arr_phi_i_sk)
 
             # In kết quả short-term
-            if short_pi_sk is None:
-                continue
-            # benchmark.print_result_short_term(short_pi_sk, short_z_ib_sk, short_p_ib_sk, short_mu_ib_sk)
-            other_function.save_object(
-                f"{filename_solution}_shortterm_f{f}_t{t}.pkl.gz",
-                (short_pi_sk, short_z_ib_sk, short_p_ib_sk, short_mu_ib_sk)
-            )
-            
-        # num_UEs = max(num_UEs + np.random.randint(-delta_num_UE, delta_num_UE), 0)
-        num_UEs = max(num_UEs + np.random.randint(-delta_num_UE, delta_num_UE), 1)
-        
-    logger.stop()
-    logger.write_to_file(f"{filename_prefix}.log")
+            #benchmark.print_result_short_term(short_pi_sk, short_z_ib_sk, short_p_ib_sk, short_mu_ib_sk)
 
-
-
+        num_UEs = max(num_UEs + np.random.randint(-delta_num_UE, delta_num_UE), 0)
+    
 
 # Kiểm tra và chạy hàm main
 if __name__ == "__main__":
     main()
+
+
