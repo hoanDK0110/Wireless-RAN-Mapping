@@ -14,8 +14,8 @@ import os
 num_RUs = 4                             # Số lượng RU (bao gồm RU ở tâm)
 num_DUs = 3                             # Số lượng DU
 num_CUs = 3                             # Số lượng CU
-num_UEs = 5                             # Tổng số lượng user cho tất dịch vụ (eMBB, mMTC, URLLC)
-num_RBs = 5                             # Số lượng của RBs
+num_UEs = 10                            # Tổng số lượng user cho tất dịch vụ (eMBB, mMTC, URLLC)
+num_RBs = 20                             # Số lượng của RBs
 num_antennas = 8                        # Số lượng anntenas
 num_slices = 1                          # Số lượng loại dịch vụ
 
@@ -67,7 +67,7 @@ filename_problem = f"{filename_prefix}_problem.pkl.gz"
 filename_solution = f"{filename_prefix}_solution"
 
 # ===========================================
-# ============== Main =======================
+# ============== Main ======================= 
 # ===========================================
 
 def main():
@@ -172,8 +172,59 @@ def main():
         num_UEs = max(num_UEs + np.random.randint(-delta_num_UE, delta_num_UE), 0)
     
 
+
+def test():
+ 
+    seed = 1
+    np.random.seed(seed)
+ 
+    # Toạ toạ độ RU
+    coordinates_RU = gen_RU_UE.gen_coordinates_RU(num_RUs, radius_out)
+ 
+    # Tạo mạng RAN
+    G = RAN_topo.create_topo(num_RUs, num_DUs, num_CUs, P_j_random_list, A_j_random_list, A_m_random_list)
+ 
+    # Danh sách tập các liên kết trong mạng
+    l_ru_du, l_du_cu = RAN_topo.get_links(G)
+ 
+    # Tập các capacity của các node DU, CU và công suất có tại RU
+    P_i, A_j, A_m = RAN_topo.get_node_cap(G)
+ 
+    # Tạo yêu cầu từng UE (loại Slice và yêu cầu tài nguyên DU, CU)
+    slice_mapping, D_j, D_m, R_min = gen_RU_UE.gen_mapping_and_requirements(num_UEs, num_slices, D_j_random_list, D_m_random_list, R_min_random_list)
+ 
+    # Tạo toạ độ UE
+    coordinates_UE = gen_RU_UE.gen_coordinates_UE(num_UEs, radius_in, radius_out)
+ 
+    # Ma trận khoảng cách của UE - RU
+    distances_RU_UE = gen_RU_UE.calculate_distances(coordinates_RU, coordinates_UE, num_RUs, num_UEs)
+ 
+    gain = wireless.channel_gain(distances_RU_UE, num_slices, num_RUs, num_UEs, num_RBs, num_antennas, path_loss_ref, path_loss_exp, noise_power_watts)
+ 
+    # Gọi làm long-term: giải bài toán toàn cục
+    pi_sk, z_ib_sk, p_ib_sk, mu_ib_sk, phi_i_sk, phi_j_sk, phi_m_sk, total_R_sk = solving.long_term(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, P_i, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, slice_mapping)
+ 
+    print("Kết quả của pi_sk: ", pi_sk.value)
+    print("total_R_sk: ", total_R_sk.value)
+   
+    # Ánh xạ UE cho RU gần nhất
+    arr_phi_i_sk = other_function.mapping_RU_UE(slice_mapping, distances_RU_UE)
+    #print("Kết quả của arr_phi_i_sk: ", arr_phi_i_sk)
+ 
+    nearest_pi_sk, nearest_z_ib_sk, nearest_p_ib_sk, nearest_mu_ib_sk, nearest_phi_i_sk, nearest_phi_j_sk, nearest_phi_m_sk, nearest_total_R_sk = solving.mapping_RU_nearest_UE(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, P_i, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, slice_mapping, arr_phi_i_sk)
+   
+    print("Kết quả của nearest_pi_sk: ", nearest_pi_sk.value)
+    print("nearest_total_R_sk: ", nearest_total_R_sk.value)
+ 
+    #benchmark.print_results(nearest_pi_sk, nearest_z_ib_sk, nearest_p_ib_sk, nearest_mu_ib_sk, nearest_phi_i_sk, nearest_phi_j_sk, nearest_phi_m_sk)
+ 
+ 
+ 
 # Kiểm tra và chạy hàm main
 if __name__ == "__main__":
-    main()
+    #main()
+    test()
 
-
+# Kiểm tra và chạy hàm main
+# if __name__ == "__main__":
+#     main()

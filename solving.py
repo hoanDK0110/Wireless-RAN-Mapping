@@ -174,8 +174,6 @@ def long_term(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, P_i, rb_b
 
         total_R_sk = 0
 
-        objective = cp.Maximize(gamma * cp.sum(pi_sk) + (1 - gamma) * total_R_sk * 1e-6)
-
         # Danh sách ràng buộc
         constraints = []
 
@@ -248,7 +246,7 @@ def long_term(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, P_i, rb_b
         for s in range(num_slices):
             for k in range(num_UEs):
                 constraints.append(pi_sk[s, k] == pi_sk[s, k] * slice_mapping[s, k])
-
+        objective = cp.Maximize(gamma * cp.sum(pi_sk) + (1 - gamma) * total_R_sk * 1e-6)
         # Giải bài toán tối ưu
         problem = cp.Problem(objective, constraints)
         problem.solve(solver = cp.MOSEK)
@@ -314,8 +312,6 @@ def mapping_RU_nearest_UE(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RB
         nearest_pi_sk = cp.Variable((num_slices, num_UEs), boolean=True, name="obj") 
 
         nearest_total_R_sk = 0
-
-        objective = cp.Maximize(gamma * cp.sum(nearest_pi_sk) + (1 - gamma) * nearest_total_R_sk * 1e-6)
 
         # Danh sách ràng buộc
         constraints = []
@@ -397,7 +393,7 @@ def mapping_RU_nearest_UE(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RB
                 for k in range(num_UEs):
                     constraints.append(nearest_phi_i_sk[i, s, k] == nearest_phi_i_sk[i, s, k] * arr_phi_i_sk[i, s, k])
 
-   
+        objective = cp.Maximize(gamma * cp.sum(nearest_pi_sk) + (1 - gamma) * nearest_total_R_sk * 1e-6)
         # Giải bài toán tối ưu
         problem = cp.Problem(objective, constraints)
         if logger is None:
@@ -471,8 +467,6 @@ def mapping_equal_power(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs,
         pi_sk = cp.Variable((num_slices, num_UEs), boolean=True, name="obj") 
 
         total_data_rate = cp.sum([rb_bandwidth * cp.log(1 + cp.sum([gain[i, b, s, k] * mu_ib_sk[i, b, s, k] for i in range(num_RUs)])) / np.log(2) for s in range(num_slices) for k in range(num_UEs) for b in range(num_RBs)]) 
-
-        objective = cp.Maximize(gamma * cp.sum(pi_sk) + (1 - gamma) * total_data_rate * 1e-6)
 
         # Danh sách ràng buộc
         constraints = []
@@ -552,7 +546,7 @@ def mapping_equal_power(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs,
                 for k in range(num_UEs):
                     constraints.append(phi_i_sk[i, s, k] == phi_i_sk[i, s, k] * nearest_phi_i_sk[i, s, k])
 
-   
+        objective = cp.Maximize(gamma * cp.sum(pi_sk) + (1 - gamma) * total_data_rate * 1e-6)
         # Giải bài toán tối ưu
         problem = cp.Problem(objective, constraints)
         problem.solve(solver = cp.MOSEK)
