@@ -1,9 +1,10 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+import datetime
 
-
-def create_topo(num_RUs, num_DUs, num_CUs, capacity_node):
+def create_topo(num_RUs, num_DUs, num_CUs, P_j_random_list, A_j_random_list, A_m_random_list):
     G = nx.Graph()
 
     # Tạo danh sách các nút RU, DU và CU
@@ -11,42 +12,34 @@ def create_topo(num_RUs, num_DUs, num_CUs, capacity_node):
     DUs = [f'DU{i+1}' for i in range(num_DUs)]
     CUs = [f'CU{i+1}' for i in range(num_CUs)]
 
-    # Thêm các nút DU và CU vào đồ thị
-    for du in DUs:
-        G.add_node(du, type='DU', capacity=capacity_node)
-    for cu in CUs:
-        G.add_node(cu, type='CU', capacity=capacity_node)
+    # Thêm các nút RU, DU và CU vào đồ thị
     for ru in RUs:
-        G.add_node(ru, type='RU')
+        G.add_node(ru, type='RU', power = np.random.choice(P_j_random_list))
+    for du in DUs:
+        G.add_node(du, type='DU', capacity = np.random.choice(A_j_random_list))
+    for cu in CUs:
+        G.add_node(cu, type='CU', capacity = np.random.choice(A_m_random_list))
 
-    # Liên kết các DUs với CUs
+    # Kết nối RUs với DUs (Mỗi DU có thể kết nối với tất cả các RU)
+    for du in DUs:
+        for ru in RUs:
+            G.add_edge(ru, du)
+
+    # Kết nối DUs với CUs (Mỗi DU kết nối với tất cả các CU)
     for du in DUs:
         for cu in CUs:
             G.add_edge(du, cu)
 
-    # Kết nối RUs với DUs
-    ru_per_du = max(1, num_RUs // num_DUs)
-    for i in range(0, num_RUs, ru_per_du):
-        du_index = i // ru_per_du
-        if du_index < num_DUs:
-            for j in range(ru_per_du):
-                if i + j < num_RUs:
-                    G.add_edge(RUs[i + j], DUs[du_index])
-
-    # Kết nối các RU dư với các DU cuối
-    remainder = num_RUs % num_DUs
-    if remainder > 0:
-        for j in range(remainder):
-            G.add_edge(RUs[-(j + 1)], DUs[-(j + 1)])
     return G
 
 
 # Hàm vẽ đồ thị
-def draw_topo(G):
+def draw_topo(G, output_folder_time):
     # Lọc các nút RU, DU và CU từ đồ thị dựa trên thuộc tính 'type'
     RUs = [node for node, data in G.nodes(data=True) if data['type'] == 'RU']
     DUs = [node for node, data in G.nodes(data=True) if data['type'] == 'DU']
     CUs = [node for node, data in G.nodes(data=True) if data['type'] == 'CU']
+    
     # Vị trí của các nút: RU, DU, CU xếp thành cột
     pos = {ru: (0, 3 - i) for i, ru in enumerate(RUs)}
     pos.update({du: (1, 2.5 - i * 2) for i, du in enumerate(DUs)})
@@ -67,7 +60,17 @@ def draw_topo(G):
     plt.title(f"Network Model: {len(RUs)} RU, {len(DUs)} DU, {len(CUs)} CU (Column Layout)", fontsize=15)
     plt.axis('off')  # Tắt trục
     plt.tight_layout()  # Điều chỉnh bố cục
-    plt.show()
+
+    # Tạo thư mục kết quả nếu chưa tồn tại
+    os.makedirs(output_folder_time, exist_ok=True)
+
+    # Đặt tên file lưu với thời gian hiện tại
+    fig_name = os.path.join(output_folder_time, f"network_topology_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.pdf")
+
+    # Lưu hình ảnh dưới định dạng PDF
+    plt.savefig(fig_name, format="PDF")
+    plt.close()  # Đóng để tránh hiển thị ảnh thêm nữa
+    print(f"Topo RAN saved in {fig_name}")
 
 def get_links(G):
     # Lấy danh sách các RU, DU và CU từ đồ thị
@@ -93,20 +96,17 @@ def get_links(G):
     return l_ru_du, l_du_cu
 
 def get_node_cap(G):
+    ru_weights = []  # Mảng chứa trọng số của các nút RU
     du_weights = []  # Mảng chứa trọng số của các nút DU
     cu_weights = []  # Mảng chứa trọng số của các nút CU
 
     # Duyệt qua tất cả các nút trong đồ thị
     for node, data in G.nodes(data=True):
+        if data['type'] == 'RU':  # Nếu nút là RU
+            ru_weights.append(data['power'])
         if data['type'] == 'DU':  # Nếu nút là DU
             du_weights.append(data['capacity'])
         elif data['type'] == 'CU':  # Nếu nút là CU
             cu_weights.append(data['capacity'])
 
-    return du_weights, cu_weights
-
-
-
-
-
-
+    return ru_weights, du_weights, cu_weights
