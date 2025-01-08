@@ -3,559 +3,186 @@ import wireless
 import RAN_topo
 import solving
 import benchmark
-import time
+import other_function
 import numpy as np
-import csv
+import datetime
 import os
-from chart import plot_charts
+from datetime import datetime
+import time
 
-num_RUs = 4                             # Số lượng RU (bao gồm RU ở tâm)
-num_DUs = 2                             # Số lượng DU
-num_CUs = 2                             # Số lượng CU
-num_UEs = 5                             # Số lượng user
-num_RBs = 3                             # Số lượng của RBs
-num_antennas = 8                        # Số lượng anntenas
-num_slice = 1
+# =======================================================
+# ============== Tham số mô phỏng =======================
+# =======================================================
+num_RUs = 5                                             # Số lượng RU (bao gồm RU ở tâm)
+num_DUs = 4                                             # Số lượng DU
+num_CUs = 4                                             # Số lượng CU
 
-radius_in = 100                         # Bán kính vòng tròn trong (km)
-radius_out = 1000                       # Bán kính vòng tròn ngoài (km)
-capacity_node = 100                     # Tài nguyên node
+num_RBs = 25                                            # Số lượng của RBs
+num_antennas = 8                                        # Số lượng anntenas
 
-rb_bandwidth = 180e3                    # Băng thông của mỗi RBs (Hz)
+radius_in = 100                                         # Bán kính vòng tròn trong (m)
+radius_out = 1000                                       # Bán kính vòng tròn ngoài (m)
+
+rb_bandwidth = 180e3                                    # Băng thông của mỗi RBs (Hz)
 # Maximum transmission power
-max_tx_power_dbm = 43                   # dBm
-max_tx_power_mwatts = 10**((max_tx_power_dbm)/10) # Công suất tại mỗi RU (mW)
-noise_power_watts = 1e-10 # Công suất nhiễu (mW)   
+max_tx_power_dbm = 43                                   # dBm
+max_tx_power_mwatts = 10**((max_tx_power_dbm)/10)       # Công suất tại mỗi RU (mW)
+noise_power_watts = 1e-10                               # Công suất nhiễu (mW) 
+p_ib_sk = max_tx_power_mwatts / num_RBs                 # Phân bổ công suất đều cho các resource block
+
+epsilon = 1e-5                                         # Giá trị nhỏ ~ 0
+
+P_j_random_list = [max_tx_power_mwatts]
 
 path_loss_ref = 128.1
 path_loss_exp = 37.6
 
-running_mode = 1 # 0 for random_RB and 1 for nearest_RU
+num_slices = 1                                          # Số lượng loại dịch vụ
+if num_slices == 1:
+    slices = ["eMBB"]                                   # Tập các loại slice
+else:
+    slices = ["eMBB", "ULLRC", "mMTC"]                  # Tập các loại slice
 
-D_j = 50                                 # yêu cầu tài nguyên của node DU j
-D_m = 50                                 # yêu cầu tài nguyên của node CU m
+D_j_random_list = [10]                                   # Các loại yêu cầu tài nguyên của node DU j 
+D_m_random_list = [10]                                     # Các loại yêu cầu tài nguyên của node CU m 
 
-D_j_ramdom_list = [5]
-D_m_random_list = [5]
-A_j_random_list = [100]
-A_m_random_list = [100] 
-R_min_ramdom_list = [1e6]
+A_j_random_list = [100]                                  # Các loại tài nguyên của node DU j
+A_m_random_list = [100]                                  # Các loại tài nguyên của node CU m
 
-R_min = 1e6                              # Data rate ngưỡng yêu cầu
-epsilon = 1e-6                           # Giá trị nhỏ ~ 0
+R_min_random_list = [1e6]                               # Các loại yêu cầu Data rate ngưỡng
 
-#Toạ toạ độ RU, UE
-coordinates_RU = gen_RU_UE.gen_coordinates_RU(num_RUs, radius_out)                  
-coordinates_UE = gen_RU_UE.gen_coordinates_UE(num_UEs, radius_in, radius_out) 
+delta_coordinate = 5                                    # Sai số toạ độ của UE
+delta_num_UE = 5                                        # Sai số số lượng UE
 
-delta_coordinates = 5
+time_slot = 5                                           # Số lượng time slot trong 1 frame
+num_frame = 5
 
-# Tính khoảng cách giữa euclid RU-UE (km)
-distances_RU_UE = gen_RU_UE.calculate_distances(coordinates_RU, coordinates_UE, num_RUs, num_UEs)
+gamma = 0.8                                             # Hệ số tối ưu
 
-# Tạo mạng RAN
-G = RAN_topo.create_topo(num_RUs, num_DUs, num_CUs, A_j_random_list, A_m_random_list)
+num_step = 2                                          # Số lần chạy mô phỏng
+# ===========================================
+# ============== Main =======================
+# ===========================================
 
-# Danh sách tập các liên kết trong mạng
-l_ru_du, l_du_cu = RAN_topo.get_links(G)
+# Đường dẫn thư mục output
+SAVE_PATH  = "./result/"
 
-# Tập các capacity của các node DU, CU
-A_j, A_m = RAN_topo.get_node_cap(G)
+def main():
+    num_UEs = 25                                           # Tổng số lượng user cho tất dịch vụ (eMBB, mMTC, URLLC)
+    seed = 2
+    np.random.seed(seed)
 
-gain = wireless.channel_gain(distances_RU_UE, num_slice, num_RUs, num_UEs, num_RBs, num_antennas, path_loss_ref, path_loss_exp, noise_power_watts)
+    # Lấy thời gian hiện tại
+    current_time = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
 
-# Truyền running_mode vào hàm plot_charts
-plot_charts(running_mode)
+    # Tạo thư mục chính theo cấu trúc result/{current_time}
+    output_folder_time = os.path.join(SAVE_PATH, current_time)
+    os.makedirs(output_folder_time, exist_ok=True)
+    print(f"Output folder created: {output_folder_time}")
 
-#random_RBs
-if running_mode == 0:
-# Solve
-    pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk = solving.global_problem(running_mode, 0, num_slice, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, max_tx_power_mwatts, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon)
+    # Tạo mạng RAN
+    print("Creating RAN topology...")
+    G = RAN_topo.create_topo(num_RUs, num_DUs, num_CUs, P_j_random_list, A_j_random_list, A_m_random_list)
 
-    benchmark.print_results(running_mode,num_slice, num_RUs, num_DUs, num_CUs, num_UEs, pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk)
-    # Tính toán used_power và unused_power
-    used_power = np.zeros(P_bi_sk.shape[1])
-    unused_power = np.zeros(P_bi_sk.shape[1])
-    for s in range(P_bi_sk.shape[0]):
-        for i in range(P_bi_sk.shape[1]):
-            temp = 0
-            for k in range(P_bi_sk.shape[2]):
-                for b in range(P_bi_sk.shape[3]):
-                    temp += P_bi_sk[s, i, k, b].value
-            used_power[i] = (temp / max_tx_power_mwatts) * 100
-            unused_power[i] = 110 - used_power[i]
+    # Gọi hàm lưu các tham số mô phỏng
+    for step in range(num_step):
+        print(f"\n===== Step {step + 1}/{num_step} =====")
+        step_start_time = time.time()
 
-    # Tính toán used_rb và unused_rb
-    used_rb = 0
-    unused_rb = 0
-    for s in range(z_bi_sk.shape[0]):
-        for i in range(z_bi_sk.shape[1]):
-            temp_rb = 0
-            for k in range(z_bi_sk.shape[2]):
-                for b in range(z_bi_sk.shape[3]):
-                    temp_rb += z_bi_sk[s, i, k, b].value
-            used_rb += temp_rb
-    used_rb = (used_rb / num_RBs) * 100
-    unused_rb = 110 - used_rb
+        # Tạo tọa độ RU và UE
+        print(f"Step {step + 1}: Generating coordinates...")
+        coordinates_RU = gen_RU_UE.gen_coordinates_RU(num_RUs, radius_out)
+        coordinates_UE = gen_RU_UE.gen_coordinates_UE(num_UEs, radius_in, radius_out)
 
-    #Tính toán used_du và unused_du
-    used_du = np.zeros(phi_j_sk.shape[1])
-    unused_du = np.zeros(phi_j_sk.shape[1])
-    for s in range(phi_j_sk.shape[0]):
-        for j in range(phi_j_sk.shape[1]):
-            temp_du = 0
-            for k in range(phi_j_sk.shape[2]):
-                temp_du += phi_j_sk[s, j , k].value
-            used_du[j] = (temp_du * D_j / capacity_node) * 100
-            unused_du[j] = 110 - used_du[j]
+        #mới
+        # Kiểm tra số lượng UE trong phạm vi RU
+        def count_UEs_within_range(coordinates_RU, coordinates_UE, radius_in, radius_out):
+            ru_ue_mapping = {}
+            for i, ru in enumerate(coordinates_RU):
+                count = 0
+                ue_in_range = []
+                for j, ue in enumerate(coordinates_UE):
+                    distance = np.sqrt((ru[0] - ue[0]) ** 2 + (ru[1] - ue[1]) ** 2)
+                    if radius_in <= distance <= radius_out:
+                        count += 1
+                        ue_in_range.append(ue)
+                ru_ue_mapping[f"RU {i + 1}"] = {
+                    "count": count,
+                    "UEs": ue_in_range
+                }
+                print(f"RU {i + 1}: {count} UEs within range. UEs: {ue_in_range}")
+            return ru_ue_mapping
 
-    #Tính toán used_cu và unused_cu
-    used_cu = np.zeros(phi_m_sk.shape[1])
-    unused_cu = np.zeros(phi_m_sk.shape[1])
-    for s in range(phi_m_sk.shape[0]):
-        for m in range(phi_m_sk.shape[1]):
-            temp_cu = 0
-            for k in range(phi_m_sk.shape[2]):
-                temp_cu += phi_m_sk[s, m , k].value
-            used_cu[m] = (temp_cu * D_m / capacity_node) * 100
-            unused_cu[m] = 110 - used_cu[m]
+        ru_ue_mapping = count_UEs_within_range(coordinates_RU, coordinates_UE, radius_in, radius_out)
+        #hết mới
 
-    # Lưu trữ dữ liệu vào tệp
-    np.save("used_power.npy", used_power)
-    np.save("unused_power.npy", unused_power)
-    np.save("used_rb.npy", used_rb)
-    np.save("unused_rb.npy", unused_rb)
-    np.save("used_du.npy", used_du)
-    np.save("unused_du.npy", unused_du)
-    np.save("used_cu.npy", used_cu)
-    np.save("unused_cu.npy", unused_cu)
+        # Danh sách các liên kết trong mạng và các capacity của các node DU, CU và công suất tại RU
+        print(f"Step {step + 1}: Retrieving network links and capacities...")
+        l_ru_du, l_du_cu = RAN_topo.get_links(G)
+        _, A_j, A_m = RAN_topo.get_node_cap(G)
 
-    # Ghi pi_sk ra file CSV (nếu pi_sk là một dictionary)
-    with open('pi_sk.csv', mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Index", "Accepted"])
-        if pi_sk.value is not None:
-            for idx, val in enumerate(pi_sk.value):
-                writer.writerow([idx, val])
+        # Tạo yêu cầu của từng UE
+        print(f"Step {step + 1}: Generating UE requirements...")
+        slice_mapping, D_j, D_m, R_min = gen_RU_UE.gen_mapping_and_requirements(num_UEs, num_slices, D_j_random_list, D_m_random_list, R_min_random_list)
 
-    # Ghi z_bi_sk ra file CSV (nếu z_bi_sk là một dictionary)
-    with open('z_bi_sk.csv', mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["(RU, UE, RB)", "Value"])
-        for s in range(num_slice):
-            for i in range(num_RUs):
-                for k in range(num_UEs):
-                    for b in range(num_RBs):  # z_bi_sk là dictionary
-                        writer.writerow([s, i,k,b, z_bi_sk[(s, i, k, b)].value])
+        # Tính ma trận khoảng cách của UE - RU
+        print(f"Step {step + 1}: Calculating RU-UE distances...")
+        distances_RU_UE = gen_RU_UE.calculate_distances(coordinates_RU, coordinates_UE, num_RUs, num_UEs)
 
-    # Ghi phi_i_sk ra file CSV (nếu phi_i_sk là một dictionary)
-    with open('phi_i_sk.csv', mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Slice", "RU", "UE", "Value"])
+        # Tính matrix channel
+        print(f"Step {step + 1}: Computing channel power, SNR, and data rate...")
+        channel_power, SNR, data_rate = wireless.channel_matrix(
+            distances_RU_UE, num_slices, num_RUs, num_UEs, num_RBs, num_antennas,
+            path_loss_ref, path_loss_exp, noise_power_watts, rb_bandwidth, p_ib_sk
+        )
+
+        # Bắt đầu chạy các thuật toán
+        print(f"Step {step + 1}: Running long-term algorithm...")
+        long_term_start_time = time.time()
+        pi_sk, z_ib_sk, phi_i_sk, phi_j_sk, phi_m_sk, total_R_sk, objective = solving.long_term_2(
+            num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, D_j, D_m,
+            R_min, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, slice_mapping, data_rate
+        )
+        long_term_end_time = time.time()
+        long_term_time = long_term_end_time - long_term_start_time
+        other_function.save_results(step, "long_term", long_term_time, pi_sk, objective, output_folder_time, "long_term")
+        print(f"Step {step + 1}: Long-term algorithm completed in {long_term_time:.4f} seconds.")
+
+        # Mapping UE cho RU gần nhất
+        print(f"Step {step + 1}: Mapping UEs to the nearest RU...")
+        arr_phi_i_sk = other_function.mapping_RU_UE(slice_mapping, distances_RU_UE)
+        print(f"Step {step + 1}: Running nearest mapping algorithm...")
+        nearest_start_time = time.time()
+        nearest_pi_sk, nearest_z_ib_sk, nearest_phi_i_sk, nearest_phi_j_sk, nearest_phi_m_sk, nearest_total_R_sk, nearest_objective = solving.mapping_RU_nearest_UE(
+            num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, D_j, D_m,
+            R_min, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, slice_mapping,
+            arr_phi_i_sk, data_rate
+        )
+        nearest_end_time = time.time()
+        nearest_time = nearest_end_time - nearest_start_time
+        other_function.save_results(step, "nearest_mapping", nearest_time, nearest_pi_sk, nearest_objective, output_folder_time, "nearest_mapping")
+        print(f"Step {step + 1}: Nearest mapping algorithm completed in {nearest_time:.4f} seconds.")
         
-        # Duyệt qua từng slice, RU, và UE trong mảng phi_i_sk
-        for s in range(phi_i_sk.shape[0]):  
-            for i in range(phi_i_sk.shape[1]):  
-                for k in range(phi_i_sk.shape[2]):  
-                    Phi_i_sk = phi_i_sk[s, i, k]  
-                    if Phi_i_sk.value is not None:  
-                        writer.writerow([s, i, k, Phi_i_sk.value])  
+        #mới
+        #random_RU
+        print(f"Step {step + 1}: Running random-RU algorithm...")
+        random_RU_start_time = time.time()
+        random_pi_sk, random_z_ib_sk, random_phi_i_sk, random_phi_j_sk, random_phi_m_sk, random_total_R_sk, random_objective, ue_to_ru_mapping = solving.random_RU(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, D_j, D_m, R_min, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, slice_mapping, data_rate, ru_ue_mapping, coordinates_UE)
+        random_RU_end_time = time.time()
+        random_RU_time = random_RU_end_time - random_RU_start_time
+        other_function.save_results(step, "random_RU", random_RU_time, random_pi_sk, random_objective, output_folder_time, "random_RU")
+        print(f"Step {step + 1}: random-RU algorithm completed in {random_RU_time:.4f} seconds.")
+        #hết mới
 
-    # Ghi phi_j_sk ra file CSV (nếu phi_j_sk là một dictionary)
-    with open('phi_j_sk.csv', mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Slice", "DU", "UE", "Value"])
+        step_end_time = time.time()
+        print(f"Step {step + 1}: Completed in {step_end_time - step_start_time:.4f} seconds.")
         
-        # Duyệt qua từng slice, RU, và UE trong mảng phi_i_sk
-        for s in range(phi_j_sk.shape[0]):  
-            for i in range(phi_j_sk.shape[1]):  
-                for k in range(phi_j_sk.shape[2]):  
-                    Phi_j_sk = phi_j_sk[s, i, k]  
-                    if Phi_j_sk.value is not None:  
-                        writer.writerow([s, i, k, Phi_j_sk.value])
-
-    # Ghi phi_m_sk ra file CSV (nếu phi_m_sk là một dictionary)
-    with open('phi_m_sk.csv', mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Slice", "CU", "UE", "Value"])
-        
-        # Duyệt qua từng slice, RU, và UE trong mảng phi_i_sk
-        for s in range(phi_m_sk.shape[0]):  
-            for i in range(phi_m_sk.shape[1]):  
-                for k in range(phi_m_sk.shape[2]):  
-                    Phi_m_sk = phi_m_sk[s, i, k]  
-                    if Phi_m_sk.value is not None:  
-                        writer.writerow([s, i, k, Phi_m_sk.value])
-                        
-    # Tạo thư mục lưu trữ kết quả cho trường hợp running_mode = 0
-    results_dir = "results_running_mode_0"
-    os.makedirs(results_dir, exist_ok=True)  # Tạo thư mục nếu chưa tồn tại
+        # Tạo số lượng UE mới
+        num_UEs = other_function.generate_new_num_UEs(num_UEs, delta_num_UE)
     
-    # Lưu dữ liệu vào file `.npy` trong thư mục kết quả
-    np.save(os.path.join(results_dir, "used_power.npy"), used_power)
-    np.save(os.path.join(results_dir, "unused_power.npy"), unused_power)
-    np.save(os.path.join(results_dir, "used_rb.npy"), used_rb)
-    np.save(os.path.join(results_dir, "unused_rb.npy"), unused_rb)
-    np.save(os.path.join(results_dir, "used_du.npy"), used_du)
-    np.save(os.path.join(results_dir, "unused_du.npy"), unused_du)
-    np.save(os.path.join(results_dir, "used_cu.npy"), used_cu)
-    np.save(os.path.join(results_dir, "unused_cu.npy"), unused_cu)
+    print("\nAll steps completed.")
 
-    # Ghi biến `pi_sk` ra file CSV
-    with open(os.path.join(results_dir, 'pi_sk.csv'), 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Index", "Accepted"])
-        for idx, val in enumerate(pi_sk.value):
-            writer.writerow([idx, val])
 
-    # Ghi biến `z_bi_sk` ra file CSV
-    with open(os.path.join(results_dir, 'z_bi_sk.csv'), 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Slice", "RU", "UE", "RB", "Value"])
-        for s in range(z_bi_sk.shape[0]):
-            for i in range(z_bi_sk.shape[1]):
-                for k in range(z_bi_sk.shape[2]):
-                    for b in range(z_bi_sk.shape[3]):
-                        writer.writerow([s, i, k, b, z_bi_sk[s, i, k, b].value])
-
-    # Ghi biến `phi_i_sk` ra file CSV
-    with open(os.path.join(results_dir, 'phi_i_sk.csv'), 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Slice", "RU", "UE", "Value"])
-        for s in range(phi_i_sk.shape[0]):
-            for i in range(phi_i_sk.shape[1]):
-                for k in range(phi_i_sk.shape[2]):
-                    writer.writerow([s, i, k, phi_i_sk[s, i, k].value])
-
-    # Ghi biến `phi_j_sk` ra file CSV
-    with open(os.path.join(results_dir, 'phi_j_sk.csv'), 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Slice", "DU", "UE", "Value"])
-        for s in range(phi_j_sk.shape[0]):
-            for j in range(phi_j_sk.shape[1]):
-                for k in range(phi_j_sk.shape[2]):
-                    writer.writerow([s, j, k, phi_j_sk[s, j, k].value])
-
-    # Ghi biến `phi_m_sk` ra file CSV
-    with open(os.path.join(results_dir, 'phi_m_sk.csv'), 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Slice", "CU", "UE", "Value"])
-        for s in range(phi_m_sk.shape[0]):
-            for m in range(phi_m_sk.shape[1]):
-                for k in range(phi_m_sk.shape[2]):
-                    writer.writerow([s, m, k, phi_m_sk[s, m, k].value])
-
-    # Ghi biến `P_bi_sk` ra file CSV
-    with open(os.path.join(results_dir, 'P_bi_sk.csv'), 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Slice", "RU", "UE", "RB", "Power"])
-        for s in range(P_bi_sk.shape[0]):
-            for i in range(P_bi_sk.shape[1]):
-                for k in range(P_bi_sk.shape[2]):
-                    for b in range(P_bi_sk.shape[3]):
-                        writer.writerow([s, i, k, b, P_bi_sk[s, i, k, b].value])
-
-    print(f"All variables have been saved to CSV files in the folder: {results_dir}")
-
-    # Gọi hàm chart1 từ file chart
-    #chart.chart1(used_power, unused_power, used_rb, unused_rb)
-    #short-term
-    pi_sk_value_for_short_term = pi_sk.value
-    phi_i_sk_value_for_short_term = np.zeros((num_slice, num_RUs, num_UEs))
-    for s in range(num_slice):
-        for i in range(num_RUs):
-            for k in range(num_UEs):
-                phi_i_sk_value_for_short_term[s,i,k] = phi_i_sk[s,i,k].value
-    phi_j_sk_value_for_short_term = np.zeros((num_slice, num_DUs, num_UEs))
-    for s in range(num_slice):
-        for j in range(num_DUs):
-            for k in range(num_UEs):
-                phi_j_sk_value_for_short_term[s,j,k] = phi_j_sk[s,j,k].value
-    phi_m_sk_value_for_short_term = np.zeros((num_slice, num_CUs, num_UEs))
-    for s in range(num_slice):
-        for m in range(num_CUs):
-            for k in range(num_UEs):
-                phi_m_sk_value_for_short_term[s,m,k] = phi_m_sk[s,m,k].value
-    # for i in range(num_UEs):
-    #     if pi_sk_value_for_short_term[i] == 1 :
-    #         coordinates_UE_short_term = gen_RU_UE.gen_coordinates_UE_for_short_term(i, coordinates_UE, 5) 
-    # distances_RU_UE_short_term = gen_RU_UE.calculate_distances(coordinates_RU, coordinates_UE, num_RUs, num_UEs)
-    # gain_short_term = wireless.channel_gain(distances_RU_UE_short_term, num_RUs, num_UEs, num_RBs, num_antennas, path_loss_ref, path_loss_exp, noise_power_watts)
-    # R_sk_short_term,mu_bi_sk_short_term,z_bi_sk_short_term = solving.short_term(num_RUs, num_RBs, num_UEs, rb_bandwidth, gain_short_term, R_min, max_tx_power_mwatts, pi_sk_value_for_short_term)
-    # benmark.print_short_term_results(R_sk_short_term,mu_bi_sk_short_term,z_bi_sk_short_term)
-    # for s in range(num_slice):
-    #     for i in range(num_UEs):
-    #         if pi_sk_value_for_short_term[s,i] == 1 :
-    #             print(f"{i}")
-    # print(type(phi_i_sk_value_for_short_term))
-    # print(type(phi_j_sk_value_for_short_term))
-    # print(type(phi_m_sk_value_for_short_term))
-    # print(type(l_ru_du))
-    last_3s_time = time.time()
-    last_12s_time = time.time()
-    while True:
-        current_time = time.time()
-        if current_time - last_3s_time >= 3:
-            for s in range(num_slice):
-                coordinates_UE_short_term = gen_RU_UE.gen_coordinates_UE_for_short_term(i, coordinates_UE, delta_coordinates) 
-                distances_RU_UE_short_term = gen_RU_UE.calculate_distances(coordinates_RU, coordinates_UE_short_term, num_RUs, num_UEs)
-                gain_short_term = wireless.channel_gain(distances_RU_UE_short_term, num_slice, num_RUs, num_UEs, num_RBs, num_antennas, path_loss_ref, path_loss_exp, noise_power_watts)
-                R_sk_short_term,mu_bi_sk_short_term,z_bi_sk_short_term = solving.short_term(num_slice, num_RUs, num_DUs, num_CUs, num_RBs, num_UEs, epsilon, l_ru_du, l_du_cu, rb_bandwidth, gain_short_term, R_min, max_tx_power_mwatts, pi_sk_value_for_short_term, phi_i_sk_value_for_short_term, phi_j_sk_value_for_short_term, phi_m_sk_value_for_short_term)
-                benchmark.print_short_term_results(num_slice,num_RUs,num_DUs,num_CUs,num_UEs,R_sk_short_term,mu_bi_sk_short_term,z_bi_sk_short_term)
-                last_3s_time = current_time
-        if current_time - last_12s_time >= 12:
-            pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk = solving.global_problem(num_slice, 0, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, max_tx_power_mwatts, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon)
-            benchmark.print_results(running_mode,num_slice,num_RUs,num_DUs,num_CUs,num_UEs,pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk)
-            pi_sk_value_for_short_term = pi_sk.value
-            last_12s_time = current_time
-        if current_time >= 6:
-            break
-        time.sleep(1)
-
-#NearestRU
-if running_mode == 1:
-    closest_RU_for_UE = []
-    for k in range(num_UEs):
-        min_distance = float('inf')
-        closest_RU = -1
-        for i in range(num_RUs):
-            distances = distances_RU_UE[i,k]
-            if distances < min_distance:
-                min_distance = distances
-                closest_RU = i
-        closest_RU_for_UE.append(closest_RU)
-    phi_i_sk_for_nearestRU = np.zeros((num_slice, num_RUs, num_UEs))
-    for s in range(num_slice):
-        for index, value in enumerate(closest_RU_for_UE):
-            phi_i_sk_for_nearestRU[s, value, index] = 1
-    for s in range(num_slice):
-        print(f"\nGiá trị của phi_i_sk tại slice {s} (mối liên hệ giữa RU và UE):")
-        for i in range(num_RUs):
-            for k in range(num_UEs):
-                print(phi_i_sk_for_nearestRU[s,i,k])
-    pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk = solving.global_problem(running_mode, phi_i_sk_for_nearestRU, num_slice, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, max_tx_power_mwatts, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon)
-
-    benchmark.print_results(running_mode,num_slice,num_RUs,num_DUs,num_CUs,num_UEs,pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk)
-    
-    # Tính toán used_power và unused_power
-    used_power = np.zeros(P_bi_sk.shape[1])
-    unused_power = np.zeros(P_bi_sk.shape[1])
-    for s in range(P_bi_sk.shape[0]):
-        for i in range(P_bi_sk.shape[1]):
-            temp = 0
-            for k in range(P_bi_sk.shape[2]):
-                for b in range(P_bi_sk.shape[3]):
-                    temp += P_bi_sk[s, i, k, b].value
-            used_power[i] = (temp / max_tx_power_mwatts) * 100
-            unused_power[i] = 110 - used_power[i]
-
-    # Tính toán used_rb và unused_rb
-    used_rb = 0
-    unused_rb = 0
-    for s in range(z_bi_sk.shape[0]):
-        for i in range(z_bi_sk.shape[1]):
-            temp_rb = 0
-            for k in range(z_bi_sk.shape[2]):
-                for b in range(z_bi_sk.shape[3]):
-                    temp_rb += z_bi_sk[s, i, k, b].value
-            used_rb += temp_rb
-    used_rb = (used_rb / num_RBs) * 100
-    unused_rb = 110 - used_rb
-
-    #Tính toán used_du và unused_du
-    used_du = np.zeros(phi_j_sk.shape[1])
-    unused_du = np.zeros(phi_j_sk.shape[1])
-    for s in range(phi_j_sk.shape[0]):
-        for j in range(phi_j_sk.shape[1]):
-            temp_du = 0
-            for k in range(phi_j_sk.shape[2]):
-                temp_du += phi_j_sk[s, j , k].value
-            used_du[j] = (temp_du * D_j / capacity_node) * 100
-            unused_du[j] = 110 - used_du[j]
-
-    #Tính toán used_cu và unused_cu
-    used_cu = np.zeros(phi_m_sk.shape[1])
-    unused_cu = np.zeros(phi_m_sk.shape[1])
-    for s in range(phi_m_sk.shape[0]):
-        for m in range(phi_m_sk.shape[1]):
-            temp_cu = 0
-            for k in range(phi_m_sk.shape[2]):
-                temp_cu += phi_m_sk[s, m , k].value
-            used_cu[m] = (temp_cu * D_m / capacity_node) * 100
-            unused_cu[m] = 110 - used_cu[m]
-
-    # Lưu trữ dữ liệu vào tệp
-    np.save("used_power.npy", used_power)
-    np.save("unused_power.npy", unused_power)
-    np.save("used_rb.npy", used_rb)
-    np.save("unused_rb.npy", unused_rb)
-    np.save("used_du.npy", used_du)
-    np.save("unused_du.npy", unused_du)
-    np.save("used_cu.npy", used_cu)
-    np.save("unused_cu.npy", unused_cu)
-
-    # Ghi pi_sk ra file CSV (nếu pi_sk là một dictionary)
-    with open('pi_sk.csv', mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Index", "Accepted"])
-        if pi_sk.value is not None:
-            for idx, val in enumerate(pi_sk.value):
-                writer.writerow([idx, val])
-
-    # Ghi z_bi_sk ra file CSV (nếu z_bi_sk là một dictionary)
-    with open('z_bi_sk.csv', mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["(RU, UE, RB)", "Value"])
-        for s in range(num_slice):
-            for i in range(num_RUs):
-                for k in range(num_UEs):
-                    for b in range(num_RBs):  # z_bi_sk là dictionary
-                        writer.writerow([s, i,k,b, z_bi_sk[(s, i, k, b)].value])
-
-    # Ghi phi_i_sk ra file CSV (nếu phi_i_sk là một dictionary)
-    with open('phi_i_sk.csv', mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Slice", "RU", "UE", "Value"])
-        
-        # Duyệt qua từng slice, RU, và UE trong mảng phi_i_sk
-        for s in range(phi_i_sk.shape[0]):  
-            for i in range(phi_i_sk.shape[1]):  
-                for k in range(phi_i_sk.shape[2]):  
-                    Phi_i_sk = phi_i_sk[s, i, k]  
-                    if Phi_i_sk.value is not None:  
-                        writer.writerow([s, i, k, Phi_i_sk.value])  
-
-    # Ghi phi_j_sk ra file CSV (nếu phi_j_sk là một dictionary)
-    with open('phi_j_sk.csv', mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Slice", "DU", "UE", "Value"])
-        
-        # Duyệt qua từng slice, RU, và UE trong mảng phi_i_sk
-        for s in range(phi_j_sk.shape[0]):  
-            for i in range(phi_j_sk.shape[1]):  
-                for k in range(phi_j_sk.shape[2]):  
-                    Phi_j_sk = phi_j_sk[s, i, k]  
-                    if Phi_j_sk.value is not None:  
-                        writer.writerow([s, i, k, Phi_j_sk.value])
-
-    # Ghi phi_m_sk ra file CSV (nếu phi_m_sk là một dictionary)
-    with open('phi_m_sk.csv', mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Slice", "CU", "UE", "Value"])
-        
-        # Duyệt qua từng slice, RU, và UE trong mảng phi_i_sk
-        for s in range(phi_m_sk.shape[0]):  
-            for i in range(phi_m_sk.shape[1]):  
-                for k in range(phi_m_sk.shape[2]):  
-                    Phi_m_sk = phi_m_sk[s, i, k]  
-                    if Phi_m_sk.value is not None:  
-                        writer.writerow([s, i, k, Phi_m_sk.value])
-                        
-    # Tạo thư mục lưu trữ kết quả cho trường hợp running_mode = 0
-    results_dir = "results_running_mode_1"
-    os.makedirs(results_dir, exist_ok=True)  # Tạo thư mục nếu chưa tồn tại
-    
-    # Lưu dữ liệu vào file `.npy` trong thư mục kết quả
-    np.save(os.path.join(results_dir, "used_power.npy"), used_power)
-    np.save(os.path.join(results_dir, "unused_power.npy"), unused_power)
-    np.save(os.path.join(results_dir, "used_rb.npy"), used_rb)
-    np.save(os.path.join(results_dir, "unused_rb.npy"), unused_rb)
-    np.save(os.path.join(results_dir, "used_du.npy"), used_du)
-    np.save(os.path.join(results_dir, "unused_du.npy"), unused_du)
-    np.save(os.path.join(results_dir, "used_cu.npy"), used_cu)
-    np.save(os.path.join(results_dir, "unused_cu.npy"), unused_cu)
-
-    # Ghi biến `pi_sk` ra file CSV
-    with open(os.path.join(results_dir, 'pi_sk.csv'), 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Index", "Accepted"])
-        for idx, val in enumerate(pi_sk.value):
-            writer.writerow([idx, val])
-
-    # Ghi biến `z_bi_sk` ra file CSV
-    with open(os.path.join(results_dir, 'z_bi_sk.csv'), 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Slice", "RU", "UE", "RB", "Value"])
-        for s in range(z_bi_sk.shape[0]):
-            for i in range(z_bi_sk.shape[1]):
-                for k in range(z_bi_sk.shape[2]):
-                    for b in range(z_bi_sk.shape[3]):
-                        writer.writerow([s, i, k, b, z_bi_sk[s, i, k, b].value])
-
-    # Ghi biến `phi_i_sk` ra file CSV
-    with open(os.path.join(results_dir, 'phi_i_sk.csv'), 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Slice", "RU", "UE", "Value"])
-        for s in range(phi_i_sk.shape[0]):
-            for i in range(phi_i_sk.shape[1]):
-                for k in range(phi_i_sk.shape[2]):
-                    writer.writerow([s, i, k, phi_i_sk[s, i, k].value])
-
-    # Ghi biến `phi_j_sk` ra file CSV
-    with open(os.path.join(results_dir, 'phi_j_sk.csv'), 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Slice", "DU", "UE", "Value"])
-        for s in range(phi_j_sk.shape[0]):
-            for j in range(phi_j_sk.shape[1]):
-                for k in range(phi_j_sk.shape[2]):
-                    writer.writerow([s, j, k, phi_j_sk[s, j, k].value])
-
-    # Ghi biến `phi_m_sk` ra file CSV
-    with open(os.path.join(results_dir, 'phi_m_sk.csv'), 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Slice", "CU", "UE", "Value"])
-        for s in range(phi_m_sk.shape[0]):
-            for m in range(phi_m_sk.shape[1]):
-                for k in range(phi_m_sk.shape[2]):
-                    writer.writerow([s, m, k, phi_m_sk[s, m, k].value])
-
-    # Ghi biến `P_bi_sk` ra file CSV
-    with open(os.path.join(results_dir, 'P_bi_sk.csv'), 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Slice", "RU", "UE", "RB", "Power"])
-        for s in range(P_bi_sk.shape[0]):
-            for i in range(P_bi_sk.shape[1]):
-                for k in range(P_bi_sk.shape[2]):
-                    for b in range(P_bi_sk.shape[3]):
-                        writer.writerow([s, i, k, b, P_bi_sk[s, i, k, b].value])
-
-    print(f"All variables have been saved to CSV files in the folder: {results_dir}")
-
-    #short-term
-    pi_sk_value_for_short_term = pi_sk.value
-    phi_i_sk_value_for_short_term = np.zeros((num_slice, num_RUs, num_UEs))
-    for s in range(num_slice):
-        for i in range(num_RUs):
-            for k in range(num_UEs):
-                phi_i_sk_value_for_short_term[s,i,k] = phi_i_sk[s,i,k].value
-    phi_j_sk_value_for_short_term = np.zeros((num_slice, num_DUs, num_UEs))
-    for s in range(num_slice):
-        for j in range(num_DUs):
-            for k in range(num_UEs):
-                phi_j_sk_value_for_short_term[s,j,k] = phi_j_sk[s,j,k].value
-    phi_m_sk_value_for_short_term = np.zeros((num_slice, num_CUs, num_UEs))
-    for s in range(num_slice):
-        for m in range(num_CUs):
-            for k in range(num_UEs):
-                phi_m_sk_value_for_short_term[s,m,k] = phi_m_sk[s,m,k].value
-
-    last_3s_time = time.time()
-    last_12s_time = time.time()
-    while True:
-        current_time = time.time()
-        if current_time - last_3s_time >= 3:
-            for s in range(num_slice):
-                coordinates_UE_short_term = gen_RU_UE.gen_coordinates_UE_for_short_term(i, coordinates_UE, delta_coordinates) 
-                distances_RU_UE_short_term = gen_RU_UE.calculate_distances(coordinates_RU, coordinates_UE_short_term, num_RUs, num_UEs)
-                gain_short_term = wireless.channel_gain(distances_RU_UE_short_term, num_slice, num_RUs, num_UEs, num_RBs, num_antennas, path_loss_ref, path_loss_exp, noise_power_watts)
-                R_sk_short_term,mu_bi_sk_short_term,z_bi_sk_short_term = solving.short_term(num_slice, num_RUs, num_DUs, num_CUs, num_RBs, num_UEs, epsilon, l_ru_du, l_du_cu, rb_bandwidth, gain_short_term, R_min, max_tx_power_mwatts, pi_sk_value_for_short_term, phi_i_sk_value_for_short_term, phi_j_sk_value_for_short_term, phi_m_sk_value_for_short_term)
-                benchmark.print_short_term_results(num_slice,num_RUs,num_DUs,num_CUs,num_UEs,R_sk_short_term,mu_bi_sk_short_term,z_bi_sk_short_term)
-                last_3s_time = current_time
-        if current_time - last_12s_time >= 12:
-            pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk = solving.global_problem(num_slice, 0, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, max_tx_power_mwatts, rb_bandwidth, D_j, D_m, R_min, gain, A_j, A_m, l_ru_du, l_du_cu, epsilon)
-            benchmark.print_results(running_mode,num_slice,num_RUs,num_DUs,num_CUs,num_UEs,pi_sk, z_bi_sk, phi_i_sk, phi_j_sk, phi_m_sk, P_bi_sk, mu_bi_sk)
-            pi_sk_value_for_short_term = pi_sk.value
-            last_12s_time = current_time
-        if current_time >= 6:
-            break
-        time.sleep(1)
+# Kiểm tra và chạy hàm main
+if __name__ == "__main__":
+    main()
