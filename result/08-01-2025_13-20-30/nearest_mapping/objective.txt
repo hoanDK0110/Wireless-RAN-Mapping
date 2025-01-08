@@ -1,0 +1,2 @@
+Step 1: nearest_mapping Objective = 61.943949809624904
+Step 2: nearest_mapping Objective = 58.89770598388216

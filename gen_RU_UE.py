@@ -23,11 +23,7 @@ def gen_coordinates_UE(num_UEs, radius_in, radius_out):
     return coordinates_UE
 
 def calculate_distances(coordinates_RU, coordinates_UE, num_RUs, num_UEs):
-
-    
     distances_RU_UE = np.zeros((num_RUs, num_UEs))
-    
-    
     for i in range(num_RUs):
         for j in range(num_UEs):
             x_RU, y_RU = coordinates_RU[i]

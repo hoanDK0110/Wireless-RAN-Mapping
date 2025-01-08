@@ -1,0 +1,2 @@
+Step 1: nearest_mapping time = 3.4053 seconds
+Step 2: nearest_mapping time = 2.5616 seconds
