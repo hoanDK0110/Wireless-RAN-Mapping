@@ -25,7 +25,7 @@ radius_out = 1000                                       # Bán kính vòng tròn
 
 rb_bandwidth = 180e3                                    # Băng thông của mỗi RBs (Hz)
 # Maximum transmission power
-max_tx_power_dbm = 43                                   # dBm
+max_tx_power_dbm = 40                                   # dBm
 max_tx_power_mwatts = 10**((max_tx_power_dbm)/10)       # Công suất tại mỗi RU (mW)
 noise_power_watts = 1e-10                               # Công suất nhiễu (mW) 
 p_ib_sk = max_tx_power_mwatts / num_RBs                 # Phân bổ công suất đều cho các resource block
@@ -44,7 +44,7 @@ else:
     slices = ["eMBB", "ULLRC", "mMTC"]                  # Tập các loại slice
 
 D_j_random_list = [10]                                   # Các loại yêu cầu tài nguyên của node DU j 
-D_m_random_list = [10]                                     # Các loại yêu cầu tài nguyên của node CU m 
+D_m_random_list = [10]                                   # Các loại yêu cầu tài nguyên của node CU m 
 
 A_j_random_list = [100]                                  # Các loại tài nguyên của node DU j
 A_m_random_list = [100]                                  # Các loại tài nguyên của node CU m
@@ -52,7 +52,7 @@ A_m_random_list = [100]                                  # Các loại tài nguy
 R_min_random_list = [1e6]                               # Các loại yêu cầu Data rate ngưỡng
 
 delta_coordinate = 5                                    # Sai số toạ độ của UE
-delta_num_UE = 5                                        # Sai số số lượng UE
+delta_num_UE = 2                                        # Sai số số lượng UE
 
 time_slot = 5                                           # Số lượng time slot trong 1 frame
 num_frame = 5
@@ -96,24 +96,24 @@ def main():
 
         #mới
         # Kiểm tra số lượng UE trong phạm vi RU
-        def count_UEs_within_range(coordinates_RU, coordinates_UE, radius_in, radius_out):
-            ru_ue_mapping = {}
-            for i, ru in enumerate(coordinates_RU):
-                count = 0
-                ue_in_range = []
-                for j, ue in enumerate(coordinates_UE):
-                    distance = np.sqrt((ru[0] - ue[0]) ** 2 + (ru[1] - ue[1]) ** 2)
-                    if radius_in <= distance <= radius_out:
-                        count += 1
-                        ue_in_range.append(ue)
-                ru_ue_mapping[f"RU {i + 1}"] = {
-                    "count": count,
-                    "UEs": ue_in_range
-                }
-                print(f"RU {i + 1}: {count} UEs within range. UEs: {ue_in_range}")
-            return ru_ue_mapping
+        #def count_UEs_within_range(coordinates_RU, coordinates_UE, radius_in, radius_out):
+        #    ru_ue_mapping = {}
+        #    for i, ru in enumerate(coordinates_RU):
+        #        count = 0
+        #        ue_in_range = []
+        #        for j, ue in enumerate(coordinates_UE):
+        #            distance = np.sqrt((ru[0] - ue[0]) ** 2 + (ru[1] - ue[1]) ** 2)
+        #            if radius_in <= distance <= radius_out:
+        #                count += 1
+        #                ue_in_range.append(ue)
+        #        ru_ue_mapping[f"RU {i + 1}"] = {
+        #            "count": count,
+        #            "UEs": ue_in_range
+        #        }
+        #        print(f"RU {i + 1}: {count} UEs within range. UEs: {ue_in_range}")
+        #    return ru_ue_mapping
 
-        ru_ue_mapping = count_UEs_within_range(coordinates_RU, coordinates_UE, radius_in, radius_out)
+        #ru_ue_mapping = count_UEs_within_range(coordinates_RU, coordinates_UE, radius_in, radius_out)
         #hết mới
 
         # Danh sách các liên kết trong mạng và các capacity của các node DU, CU và công suất tại RU
@@ -164,13 +164,13 @@ def main():
         print(f"Step {step + 1}: Nearest mapping algorithm completed in {nearest_time:.4f} seconds.")
         
         #mới
-        #random_RU
-        print(f"Step {step + 1}: Running random-RU algorithm...")
+        #random_RU_Hoàn
+        print(f"Step {step + 1}: Running random-RU-Hoàn algorithm...")
         random_RU_start_time = time.time()
-        random_pi_sk, random_z_ib_sk, random_phi_i_sk, random_phi_j_sk, random_phi_m_sk, random_total_R_sk, random_objective, ue_to_ru_mapping = solving.random_RU(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, D_j, D_m, R_min, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, slice_mapping, data_rate, ru_ue_mapping, coordinates_UE)
+        random_pi_sk, random_z_ib_sk, random_phi_i_sk, random_phi_j_sk, random_phi_m_sk, random_total_R_sk, random_objective, ue_to_ru_mapping = solving.random_RU_hoan(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, D_j, D_m, R_min, A_j, A_m, l_ru_du, l_du_cu, gamma, data_rate, epsilon, slice_mapping)
         random_RU_end_time = time.time()
         random_RU_time = random_RU_end_time - random_RU_start_time
-        other_function.save_results(step, "random_RU", random_RU_time, random_pi_sk, random_objective, output_folder_time, "random_RU")
+        other_function.save_results(step, "random_RU_Hoàn", random_RU_time, random_pi_sk, random_objective, output_folder_time, "random_RU")
         print(f"Step {step + 1}: random-RU algorithm completed in {random_RU_time:.4f} seconds.")
         #hết mới
 

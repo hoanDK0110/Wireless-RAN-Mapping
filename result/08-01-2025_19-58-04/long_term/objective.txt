@@ -1,2 +1,0 @@
-Step 1: long_term Objective = 61.95023913872323
-Step 2: long_term Objective = 59.74372470611212

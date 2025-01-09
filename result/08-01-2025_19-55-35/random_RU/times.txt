@@ -1,2 +1,0 @@
-Step 1: random_RU time = 2.2133 seconds
-Step 2: random_RU time = 1.7863 seconds

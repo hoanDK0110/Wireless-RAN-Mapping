@@ -1,2 +1,0 @@
-Step 1: random_RU Objective = 49.663176284331996
-Step 2: random_RU Objective = 51.590071155551016

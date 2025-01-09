@@ -1,2 +1,0 @@
-Step 1: long_term time = 2.0950 seconds
-Step 2: long_term time = 1.6382 seconds
