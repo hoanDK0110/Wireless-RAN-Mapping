@@ -1,16 +1,17 @@
 import numpy as np
 import os
 
-def extract_optimization_results(long_pi_sk, long_phi_i_sk):
+def extract_optimization_results(long_pi_sk, long_z_ib_sk, long_phi_i_sk):
     def extract_values(array, dtype):
         shape = array.shape
         flat_array = np.array([x.value for x in array.flatten()], dtype=dtype)
         return flat_array.reshape(shape)
 
     arr_long_pi_sk = extract_values(long_pi_sk, int)
+    arr_long_z_ib_sk = extract_values(long_z_ib_sk, int)
     arr_long_phi_i_sk = extract_values(long_phi_i_sk, int)
 
-    return arr_long_pi_sk, arr_long_phi_i_sk
+    return arr_long_pi_sk, arr_long_z_ib_sk, arr_long_phi_i_sk
 
 def generate_new_num_UEs(num_UEs, delta_num_UE):
     # Tính sai số ngẫu nhiên trong khoảng [-delta_num_UE, delta_num_UE]

@@ -18,7 +18,7 @@ num_CUs = 4                                             # Số lượng CU
 num_UEs = 30                                            # Tổng số lượng user cho tất dịch vụ (eMBB, mMTC, URLLC)
 num_RBs = 30                                            # Số lượng của RBs
 num_antennas = 8                                        # Số lượng anntenas
-
+ 
 radius_in = 100                                         # Bán kính vòng tròn trong (m)
 radius_out = 1000                                       # Bán kính vòng tròn ngoài (m)
 
@@ -55,12 +55,12 @@ R_min = 1e6
 delta_coordinate = 5                                    # Sai số toạ độ của UE (met)
 delta_num_UE = 2                                        # Sai số số lượng UE (UE)
 
-time_slots = 2                                           # Số lượng time slot trong 1 frame
-num_frames = 2    
+time_slots = 5                                           # Số lượng time slot trong 1 frame
+num_frames = 3    
 
 gamma = 0.5                                             # Hệ số tối ưu
 
-num_step = 5                                          # Số lần chạy mô phỏng
+num_step = 100                                          # Số lần chạy mô phỏng
 # ===========================================
 # ============== Main =======================
 # ===========================================
@@ -171,10 +171,10 @@ def main():
             other_function.save_results("long_short", long_short_time, long_short_total_pi_sk, long_short_objective, output_folder_time)
             print(f"Long_short algorithm completed in {long_short_time:.4f} seconds.")
 
-            arr_long_short_pi_sk, arr_long_short_phi_i_sk = other_function.extract_optimization_results(long_short_pi_sk, long_short_phi_i_sk)
+            arr_long_short_pi_sk, arr_long_short_z_ib_sk, arr_long_short_phi_i_sk = other_function.extract_optimization_results(long_short_pi_sk, long_short_z_ib_sk,  long_short_phi_i_sk)
             for slot in range(time_slots):
                 short_start_time = time.time()
-                short_pi_sk, short_total_pi_sk, short_objective = solving.short_term_1(num_slices, long_short_num_UEs, num_RUs, num_RBs, bandwidth_per_RB, long_short_gain, R_min, epsilon, arr_long_short_pi_sk, arr_long_short_phi_i_sk, max_tx_power_mwatts)
+                short_pi_sk, short_total_pi_sk, short_objective = solving.short_term_2(num_slices, long_short_num_UEs, num_RUs, num_RBs, bandwidth_per_RB, long_short_gain, R_min, epsilon, arr_long_short_pi_sk, arr_long_short_z_ib_sk, arr_long_short_phi_i_sk, max_tx_power_mwatts)
                 short_end_time = time.time()
                 short_time = short_end_time - short_start_time
 
