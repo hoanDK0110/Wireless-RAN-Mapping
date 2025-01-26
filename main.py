@@ -16,7 +16,7 @@ num_RUs = 5                                             # Số lượng RU (bao 
 num_DUs = 4                                             # Số lượng DU
 num_CUs = 4                                             # Số lượng CU
 num_UEs = 30                                            # Tổng số lượng user cho tất dịch vụ (eMBB, mMTC, URLLC)
-num_RBs = 30                                            # Số lượng của RBs
+num_RBs = 40                                            # Số lượng của RBs
 num_antennas = 8                                        # Số lượng anntenas
  
 radius_in = 100                                         # Bán kính vòng tròn trong (m)
@@ -52,15 +52,15 @@ A_m_random_list = [100]                                  # Các loại tài nguy
 R_min_random_list = [1e6]                               # Các loại yêu cầu Data rate ngưỡng
 R_min = 1e6
 
-delta_coordinate = 5                                    # Sai số toạ độ của UE (met)
-delta_num_UE = 2                                        # Sai số số lượng UE (UE)
+delta_coordinate = 10                                    # Sai số toạ độ của UE (met)
+delta_num_UE = 3                                        # Sai số số lượng UE (UE)
 
-time_slots = 5                                           # Số lượng time slot trong 1 frame
-num_frames = 3    
+time_slots = 3                                           # Số lượng time slot trong 1 frame
+num_frames = 2   
 
 gamma = 0.5                                             # Hệ số tối ưu
 
-num_step = 100                                          # Số lần chạy mô phỏng
+num_step = 50                                          # Số lần chạy mô phỏng
 # ===========================================
 # ============== Main =======================
 # ===========================================
@@ -84,9 +84,15 @@ def main():
         print(f"Error creating output folder: {e}")
         return
 
-    # ==== TẠO TOPOLOGY MẠNG RAN ====
-    print("Creating RAN topology...")
+    # TẠO TOPOLOGY MẠNG RAN
     G = RAN_topo.create_topo(num_RUs, num_DUs, num_CUs, P_j_random_list, A_j_random_list, A_m_random_list)
+
+    # Tạo tọa độ RU
+    coordinates_RU = gen_RU_UE.gen_coordinates_RU(num_RUs, radius_out)
+
+    # Lấy liên kết và thông số mạng
+    l_ru_du, l_du_cu = RAN_topo.get_links(G)
+    _, A_j, A_m = RAN_topo.get_node_cap(G)
 
     # ===========================================
     # ==== BẮT ĐẦU CÁC BƯỚC MÔ PHỎNG ====
@@ -95,105 +101,80 @@ def main():
         
         print(f"\n===== Step {step + 1}/{num_step} =====")
         step_start_time = time.time()
-
-        # 1. Tạo tọa độ RU và UE
-        print("Generating RU and UE coordinates...")
-        coordinates_RU = gen_RU_UE.gen_coordinates_RU(num_RUs, radius_out)
-        coordinates_UE = gen_RU_UE.gen_coordinates_UE(num_UEs, radius_in, radius_out)
-        
-        # 2. Lấy liên kết và thông số mạng
-        print("Retrieving network links and capacities...")
-        l_ru_du, l_du_cu = RAN_topo.get_links(G)
-        _, A_j, A_m = RAN_topo.get_node_cap(G)
-
-        # 3. Tạo yêu cầu của từng UE
-        print("Generating UE requirements...")
-        slice_mapping, D_j, D_m = gen_RU_UE.gen_mapping_and_requirements(num_UEs, num_slices, D_j_random_list, D_m_random_list)
-
-        # 4. Tính toán khoảng cách và ma trận kênh
-        print("Calculating distances and channel matrix...")
-        distances_RU_UE = gen_RU_UE.calculate_distances(coordinates_RU, coordinates_UE, num_RUs, num_UEs)
-
-        gain, _, data_rate = wireless.channel_gain(distances_RU_UE, num_slices, num_RUs, num_UEs, num_RBs, num_antennas, path_loss_ref, path_loss_exp, noise_power_density, bandwidth_per_RB, P_ib_sk)
-        
-        # ===========================================
-        # ==== CHẠY THUẬT TOÁN DÀI HẠN ====
-        # ===========================================
-        print("Running long-term algorithm...")
-        long_term_start_time = time.time()
-        # Chạy thuật toán dài hạn
-        long_pi_sk, long_z_ib_sk, long_phi_i_sk, long_phi_j_sk, long_phi_m_sk, long_total_R_sk, long_total_pi_sk, long_objective = solving.long_term_2(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, D_j, D_m, R_min, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, slice_mapping, data_rate, P_ib_sk, max_tx_power_mwatts)
-        long_term_end_time = time.time()
-        long_term_time = long_term_end_time - long_term_start_time
-        # Lưu kết quả
-        other_function.save_results("long_term", long_term_time, long_total_pi_sk, long_objective, output_folder_time)
-        print(f"Long-term algorithm completed in {long_term_time:.4f} seconds.")
-
-        # ===========================================
-        # ==== Thuật toán ÁNH XẠ UE VÀO RU GẦN NHẤT ====
-        # ===========================================
-        # Chọn RU cho UE gần nhất
-        print("Mapping UEs to the nearest RU...")
-        arr_phi_i_sk = other_function.mapping_RU_UE(slice_mapping, distances_RU_UE)
-        # Chạy thuật toán ánh xạ gần nhất
-        print("Running nearest mapping algorithm...")
-        nearest_start_time = time.time()
-        nearest_pi_sk, nearest_z_ib_sk, nearest_phi_i_sk, nearest_phi_j_sk, nearest_phi_m_sk, nearest_total_R_sk, nearest_total_pi_sk, nearest_objective = solving.mapping_RU_nearest_UE(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, D_j, D_m, R_min, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, slice_mapping, arr_phi_i_sk, data_rate, P_ib_sk, max_tx_power_mwatts)
-        nearest_end_time = time.time()
-        nearest_time = nearest_end_time - nearest_start_time
-        # Lưu kết quả ánh xạ gần nhất
-        other_function.save_results("nearest_mapping", nearest_time, nearest_total_pi_sk, nearest_objective, output_folder_time)
-        print(f"Nearest mapping algorithm completed in {nearest_time:.4f} seconds.")
-        
+  
         # ===========================================
         # ==== Chạy Long-Short term ====
         # ===========================================
         long_short_num_UEs = num_UEs  # Số lượng UE ban đầu
         for frame in range(num_frames):
-            long_short_coordinates_UE = gen_RU_UE.gen_coordinates_UE(long_short_num_UEs, radius_in, radius_out)
-            # Tính lại khoảng cách từ UE  RU
-            print("Calculating distances and channel matrix...")
-            long_short_distances_RU_UE = gen_RU_UE.calculate_distances(coordinates_RU, long_short_coordinates_UE, num_RUs, long_short_num_UEs)
+            # Tạo toạ độ cho UE
+            coordinates_UE = gen_RU_UE.gen_coordinates_UE(long_short_num_UEs, radius_in, radius_out)
+
+            # Tính lại khoảng cách từ UE - RU
+            distances_RU_UE = gen_RU_UE.calculate_distances(coordinates_RU, coordinates_UE, num_RUs, long_short_num_UEs)
 
             # Tính lại gain, data rate
-            long_short_gain, _, long_short_data_rate = wireless.channel_gain(long_short_distances_RU_UE, num_slices, num_RUs, long_short_num_UEs, num_RBs, num_antennas, path_loss_ref, path_loss_exp, noise_power_density, bandwidth_per_RB, P_ib_sk)
+            short_gain, _, data_rate = wireless.channel_gain(distances_RU_UE, num_slices, num_RUs, long_short_num_UEs, num_RBs, num_antennas, path_loss_ref, path_loss_exp, noise_power_density, bandwidth_per_RB, P_ib_sk)
 
             # 3. Tạo yêu cầu của từng UE
-            long_short_slice_mapping, long_short_D_j, long_short_D_m = gen_RU_UE.gen_mapping_and_requirements(long_short_num_UEs, num_slices, D_j_random_list, D_m_random_list)
+            slice_mapping, D_j, D_m = gen_RU_UE.gen_mapping_and_requirements(long_short_num_UEs, num_slices, D_j_random_list, D_m_random_list)
 
             # Chạy thuật toán dài hạn
             long_short_start_time = time.time()
-            long_short_pi_sk, long_short_z_ib_sk, long_short_phi_i_sk, long_short_phi_j_sk, long_short_phi_m_sk, long_short_total_R_sk, long_short_total_pi_sk, long_short_objective = solving.long_term_2(num_slices, long_short_num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, long_short_D_j, long_short_D_m, R_min, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, long_short_slice_mapping, long_short_data_rate, P_ib_sk, max_tx_power_mwatts)
+            long_short_pi_sk, long_short_z_ib_sk, long_short_phi_i_sk, long_short_phi_j_sk, long_short_phi_m_sk, long_short_total_R_sk, long_short_total_pi_sk, long_short_objective = solving.long_term_2(num_slices, long_short_num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, D_j, D_m, R_min, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, slice_mapping, data_rate, P_ib_sk, max_tx_power_mwatts)
             long_short_end_time = time.time()
             long_short_time = long_short_end_time - long_short_start_time
 
-            # Lưu kết quả long_short
-            other_function.save_results("long_short", long_short_time, long_short_total_pi_sk, long_short_objective, output_folder_time)
-            print(f"Long_short algorithm completed in {long_short_time:.4f} seconds.")
+            if frame == 0:
+                # Lưu kết quả long_term
+                other_function.save_results("long_term", long_short_time, long_short_total_pi_sk, long_short_objective, output_folder_time)
+                print(f"Long-term algorithm completed in {long_short_time:.4f} seconds.")
+
+                # Lưu kết quả long_short
+                other_function.save_results("long_short", long_short_time, long_short_total_pi_sk, long_short_objective, output_folder_time)
+                print(f"Long_short algorithm completed in {long_short_time:.4f} seconds at frame {frame}.")
+                # ===========================================
+                # ==== Thuật toán ÁNH XẠ UE VÀO RU GẦN NHẤT ====
+                # ===========================================
+                # Chọn RU cho UE gần nhất
+                arr_nearest_phi_i_sk = other_function.mapping_RU_UE(slice_mapping, distances_RU_UE)
+                print("Running nearest mapping algorithm...")
+                nearest_start_time = time.time()
+                nearest_pi_sk, nearest_z_ib_sk, nearest_phi_i_sk, nearest_phi_j_sk, nearest_phi_m_sk, nearest_total_R_sk, nearest_total_pi_sk, nearest_objective = solving.mapping_RU_nearest_UE(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, D_j, D_m, R_min, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, slice_mapping, arr_nearest_phi_i_sk, data_rate, P_ib_sk, max_tx_power_mwatts)
+                nearest_end_time = time.time() 
+                nearest_time = nearest_end_time - nearest_start_time
+                # Lưu kết quả ánh xạ gần nhất
+                other_function.save_results("nearest_mapping", nearest_time, nearest_total_pi_sk, nearest_objective, output_folder_time)
+                print(f"Nearest mapping algorithm completed in {nearest_time:.4f} seconds.")
+                
+            else:
+                other_function.save_results("long_short", long_short_time, long_short_total_pi_sk, long_short_objective, output_folder_time)
+                print(f"Long_short algorithm completed in {long_short_time:.4f} seconds at frame {frame}.")
 
             arr_long_short_pi_sk, arr_long_short_z_ib_sk, arr_long_short_phi_i_sk = other_function.extract_optimization_results(long_short_pi_sk, long_short_z_ib_sk,  long_short_phi_i_sk)
             for slot in range(time_slots):
+                if slot == 0:
+                    short_coordinates_UE = coordinates_UE
                 short_start_time = time.time()
-                short_pi_sk, short_total_pi_sk, short_objective = solving.short_term_2(num_slices, long_short_num_UEs, num_RUs, num_RBs, bandwidth_per_RB, long_short_gain, R_min, epsilon, arr_long_short_pi_sk, arr_long_short_z_ib_sk, arr_long_short_phi_i_sk, max_tx_power_mwatts)
+                short_pi_sk, short_total_pi_sk, short_objective = solving.short_term_2(num_slices, long_short_num_UEs, num_RUs, num_RBs, bandwidth_per_RB, short_gain, R_min, epsilon, arr_long_short_pi_sk, arr_long_short_z_ib_sk, arr_long_short_phi_i_sk, max_tx_power_mwatts)
                 short_end_time = time.time()
                 short_time = short_end_time - short_start_time
+                print(f"Short_term mapping algorithm completed in {short_time:.4f} seconds at slot {slot}.")
 
                 # Lưu kết quả long_short
                 other_function.save_results("long_short", short_time, short_total_pi_sk, short_objective, output_folder_time)
                 
                 # UE di chuyển (có toạ độ mới)
-                long_short_coordinates_UE = gen_RU_UE.adjust_coordinates_UE(long_short_coordinates_UE, delta_coordinate)
+                short_coordinates_UE = gen_RU_UE.adjust_coordinates_UE(short_coordinates_UE, delta_coordinate)
 
                 # Khoảng cách mới từ UE - RU sau khi di chuyển
-                long_short_distances_RU_UE = gen_RU_UE.calculate_distances(coordinates_RU, long_short_coordinates_UE, num_RUs, long_short_num_UEs)
+                short_distances_RU_UE = gen_RU_UE.calculate_distances(coordinates_RU, short_coordinates_UE, num_RUs, long_short_num_UEs)
 
                 # Tính gain cho kênh truyền thay đổi
-                long_short_gain, _, _ = wireless.channel_gain(long_short_distances_RU_UE, num_slices, num_RUs, long_short_num_UEs, num_RBs, num_antennas, path_loss_ref, path_loss_exp, noise_power_density, bandwidth_per_RB, P_ib_sk)
+                short_gain, _, _ = wireless.channel_gain(short_distances_RU_UE, num_slices, num_RUs, long_short_num_UEs, num_RBs, num_antennas, path_loss_ref, path_loss_exp, noise_power_density, bandwidth_per_RB, P_ib_sk)
                 
             # Sinh số lượng UE mới cho vòng tiếp theo
             long_short_num_UEs = other_function.generate_new_num_UEs(long_short_num_UEs, delta_num_UE)
-            print("long_short_num_UEs = ", long_short_num_UEs)
-            
             
         # Hết step
         step_end_time = time.time()
@@ -400,7 +381,6 @@ def main_2():
     # ==== KẾT THÚC ====
     print("\n[INFO] Simulation completed successfully.")
 
-
 def main_2_short_term():
     # ==== CẤU HÌNH BAN ĐẦU ====
     seed = 2
@@ -511,6 +491,97 @@ def random():
 
     # ==== KẾT THÚC ====
     print("\n[INFO] Short-term simulation completed successfully.")
+
+def main_long_short():
+    seed = 1
+    np.random.seed(seed)
+    print("Starting Long-Short term simulation...")
+
+    # Lấy thời gian hiện tại để tạo thư mục lưu trữ
+    current_time = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+    output_folder_time = os.path.join(SAVE_PATH, current_time)
+
+    # Tạo thư mục lưu kết quả
+    try:
+        print("Creating output folder...")
+        os.makedirs(output_folder_time, exist_ok=True)
+        print(f"Output folder created: {output_folder_time}")
+    except Exception as e:
+        print(f"Error creating output folder: {e}")
+        return
+
+    # ==== TẠO TOPOLOGY MẠNG RAN ====
+    print("Creating RAN topology...")
+    G = RAN_topo.create_topo(num_RUs, num_DUs, num_CUs, P_j_random_list, A_j_random_list, A_m_random_list)
+    l_ru_du, l_du_cu = RAN_topo.get_links(G)
+    _, A_j, A_m = RAN_topo.get_node_cap(G)
+    print("RAN topology created successfully.")
+
+    print("Generating RU coordinates...")
+    long_short_coordinates_RU = gen_RU_UE.gen_coordinates_RU(num_RUs, radius_out)
+    print("RU coordinates generated.")
+
+    # Chạy thuật toán long-short
+    print("Running Long-Short term simulation...")
+    long_short_num_UEs = num_UEs 
+    for frame in range(num_frames):
+        print(f"\n=== Frame {frame + 1}/{num_frames} ===")
+        print("long_short_num_UEs =", long_short_num_UEs)
+
+        long_short_coordinates_UE = gen_RU_UE.gen_coordinates_UE(long_short_num_UEs, radius_in, radius_out)
+
+
+
+        long_short_distances_RU_UE = gen_RU_UE.calculate_distances(long_short_coordinates_RU, long_short_coordinates_UE, num_RUs, long_short_num_UEs)
+ 
+
+        long_short_gain, _, long_short_data_rate = wireless.channel_gain(long_short_distances_RU_UE, num_slices, num_RUs, long_short_num_UEs, num_RBs, num_antennas, path_loss_ref, path_loss_exp, noise_power_density, bandwidth_per_RB, P_ib_sk)
+
+
+        long_short_slice_mapping, long_short_D_j, long_short_D_m = gen_RU_UE.gen_mapping_and_requirements(long_short_num_UEs, num_slices, D_j_random_list, D_m_random_list)
+
+        long_short_start_time = time.time()
+        long_short_pi_sk, long_short_z_ib_sk, long_short_phi_i_sk, long_short_phi_j_sk, long_short_phi_m_sk, long_short_total_R_sk, long_short_total_pi_sk, long_short_objective = solving.long_term_2(num_slices, long_short_num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, long_short_D_j, long_short_D_m, R_min, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, long_short_slice_mapping,  long_short_data_rate, P_ib_sk, max_tx_power_mwatts)
+        long_short_end_time = time.time()
+        long_short_time = long_short_end_time - long_short_start_time
+        print(f"Long-term optimization completed in {long_short_time:.4f} seconds.")
+
+        other_function.save_results("long_short", long_short_time, long_short_total_pi_sk, long_short_objective, output_folder_time)
+
+        arr_long_short_pi_sk, arr_long_short_z_ib_sk, arr_long_short_phi_i_sk = other_function.extract_optimization_results(long_short_pi_sk, long_short_z_ib_sk, long_short_phi_i_sk)
+        
+        # Thuật toán ngắn hạn
+        for slot in range(time_slots):
+            # UE di chuyển
+            long_short_coordinates_UE = gen_RU_UE.adjust_coordinates_UE(long_short_coordinates_UE, delta_coordinate)
+
+
+            # Tính khoảng cách từ UE - RU sau di chuyển
+            short_distances_RU_UE = gen_RU_UE.calculate_distances(long_short_coordinates_RU, long_short_coordinates_UE, num_RUs, long_short_num_UEs)
+
+            # Tính gain mới nhận được
+            long_short_gain, _, _ = wireless.channel_gain(short_distances_RU_UE, num_slices, num_RUs, long_short_num_UEs, num_RBs, num_antennas, path_loss_ref, path_loss_exp, noise_power_density, bandwidth_per_RB, P_ib_sk)
+
+            short_start_time = time.time()
+            short_pi_sk, short_total_pi_sk, short_objective = solving.short_term_2(num_slices, long_short_num_UEs, num_RUs, num_RBs, bandwidth_per_RB, long_short_gain, R_min, epsilon, arr_long_short_pi_sk, arr_long_short_z_ib_sk, arr_long_short_phi_i_sk, max_tx_power_mwatts)
+            short_end_time = time.time()
+            short_time = short_end_time - short_start_time
+            print(f"Short-term optimization for slot {slot + 1} completed in {short_time:.4f} seconds.")
+
+            other_function.save_results("long_short", short_time, short_total_pi_sk, short_objective, output_folder_time)
+
+
+        # Sinh số lượng UE mới cho frame tiếp theo
+        print("Generating new number of UEs for the next frame...")
+        #long_short_num_UEs = other_function.generate_new_num_UEs(long_short_num_UEs, delta_num_UE)
+        long_short_num_UEs += 1
+        print(f"Number of UEs for the next frame: {long_short_num_UEs}")
+
+    print("\nLong-Short term simulation completed.")
+
+
+
+
 # Kiểm tra và chạy hàm main
 if __name__ == "__main__":
     main()

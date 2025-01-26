@@ -69,7 +69,7 @@ def save_results(result_prefix, execution_time, total_pi_sk, objective, output_f
     with open(objective_file, "a") as f:
         f.write(f"{objective.value}\n")
 
-    print(f"Results saved for {result_prefix} in {result_folder}.")
+    #print(f"Results saved for {result_prefix} in {result_folder}.")
 
 
 def convert_to_array(num_RUs, num_slices, num_UEs, long_phi_i_sk):
