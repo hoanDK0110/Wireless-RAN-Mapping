@@ -15,8 +15,8 @@ import time
 num_RUs = 4                                             # Số lượng RU (bao gồm RU ở tâm)
 num_DUs = 3                                             # Số lượng DU
 num_CUs = 3                                             # Số lượng CU
-num_UEs = 2                                            # Tổng số lượng user cho tất dịch vụ (eMBB, mMTC, URLLC)
-num_RBs = 2                                            # Số lượng của RBs
+num_UEs = 10                                            # Tổng số lượng user cho tất dịch vụ (eMBB, mMTC, URLLC)
+num_RBs = 14                                            # Số lượng của RBs
 num_antennas = 8                                        # Số lượng anntenas
 
 radius_in = 100                                         # Bán kính vòng tròn trong (m)
@@ -50,7 +50,7 @@ A_j_random_list = [100]                                  # Các loại tài nguy
 A_m_random_list = [100]                                  # Các loại tài nguyên của node CU m
 
 R_min_random_list = [1e6]                               # Các loại yêu cầu Data rate ngưỡng
-R_min = 1e6
+R_min = 3e6
 
 delta_coordinate = 10                                    # Sai số toạ độ của UE (met)
 delta_num_UE = 3                                        # Sai số số lượng UE (UE)
