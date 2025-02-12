@@ -43,8 +43,8 @@ if num_slices == 1:
 else:
     slices = ["eMBB", "ULLRC", "mMTC"]                  # Tập các loại slice
 
-D_j_random_list = [10]                                   # Các loại yêu cầu tài nguyên của node DU j 
-D_m_random_list = [10]                                     # Các loại yêu cầu tài nguyên của node CU m 
+D_j_random_list = [20]                                   # Các loại yêu cầu tài nguyên của node DU j 
+D_m_random_list = [20]                                     # Các loại yêu cầu tài nguyên của node CU m 
 
 A_j_random_list = [100]                                  # Các loại tài nguyên của node DU j
 A_m_random_list = [100]                                  # Các loại tài nguyên của node CU m
