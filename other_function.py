@@ -22,22 +22,37 @@ def generate_new_num_UEs(num_UEs, delta_num_UE):
     # Đảm bảo số lượng UE không âm
     return max(new_num_UEs, 0)
 
-def mapping_RU_UE(slice_mapping, distances_RU_UE):
-    num_RU, num_UEs = distances_RU_UE.shape
-    num_slices, _ = slice_mapping.shape
+def mapping_nearest_RU_UE(distances_RU_UE, slice_mapping, num_RUs, num_UEs, num_slices):
+    # Khởi tạo biến nhị phân nearest_phi_i_sk với tất cả giá trị là 0
+    nearest_phi_i_sk = np.zeros((num_RUs, num_slices, num_UEs), dtype=int)
     
-    # Khởi tạo ma trận nearest_phi_i_sk
-    nearest_phi_i_sk = np.zeros((num_RU, num_slices, num_UEs), dtype=int)
-    
-    for j in range(num_UEs):  # Duyệt qua từng UE
-        for k in range(num_slices):  # Duyệt qua từng slice
-            if slice_mapping[k, j] == 1:  # Kiểm tra UE thuộc slice nào
-                # Tìm RU gần nhất với UE j
-                nearest_RU = np.argmin(distances_RU_UE[:, j])
-                # Đánh dấu ánh xạ trong nearest_phi_i_sk
-                nearest_phi_i_sk[nearest_RU, k, j] = 1
-    
+    for k in range(num_UEs):
+        # Tìm RU gần nhất cho UE k (tức là tìm i có khoảng cách nhỏ nhất với UE k)
+        i_nearest = np.argmin(distances_RU_UE[:, k])
+        
+        # Xác định slice mà UE k đang chọn
+        for s in range(num_slices):
+            if slice_mapping[s, k] == 1:  # UE k thuộc slice s
+                nearest_phi_i_sk[i_nearest, s, k] = 1  # Đánh dấu RU gần nhất phục vụ UE này
+
     return nearest_phi_i_sk
+
+def mapping_random_RU_UE(num_RUs, num_UEs, num_slices, slice_mapping):
+
+    # Khởi tạo ma trận ánh xạ ngẫu nhiên với tất cả giá trị là 0
+    random_phi_i_sk = np.zeros((num_RUs, num_slices, num_UEs), dtype=int)
+
+    for k in range(num_UEs):
+        # Chọn RU ngẫu nhiên từ danh sách các RU có sẵn
+        chosen_RU = np.random.randint(0, num_RUs)
+
+        # Xác định slice mà UE k thuộc về
+        for s in range(num_slices):
+            if slice_mapping[s, k] == 1:  # UE k thuộc slice s
+                random_phi_i_sk[chosen_RU, s, k] = 1  # Đánh dấu ánh xạ ngẫu nhiên
+
+    return random_phi_i_sk
+
 
 def save_simulation_parameters(output_folder_time, **parameters):
     # Tạo đường dẫn đến file .txt để lưu
