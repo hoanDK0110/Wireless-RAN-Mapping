@@ -152,56 +152,53 @@ def global_solving(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, max_
         print(f'An error occurred: {e}')
         return None, None, None, None, None, None, None, None, None, None
 
-def long_term_2(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, D_j, D_m, R_min, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, slice_mapping, data_rate, P_ib_sk, max_tx_power_mwatts):
+def Long_Doraemon(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, D_j, D_m, R_min, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, slice_mapping, data_rate, P_ib_sk, max_tx_power_mwatts):
     try:
         # Khởi tạo ma trận nhị phân: z_ib_sk
-        z_ib_sk = np.empty((num_RUs, num_RBs, num_slices, num_UEs), dtype=object)
+        long_z_ib_sk = np.empty((num_RUs, num_RBs, num_slices, num_UEs), dtype=object)
         for i in range(num_RUs):
             for b in range(num_RBs):
                 for s in range(num_slices):
                     for k in range(num_UEs):
-                        z_ib_sk[i, b, s, k] = cp.Variable(boolean=True, name=f"z_ib_sk({i}, {b}, {s}, {k})")
+                        long_z_ib_sk[i, b, s, k] = cp.Variable(boolean=True, name=f"z_ib_sk({i}, {b}, {s}, {k})")
 
         # Khởi tạo các biến nhị phân: phi_i_sk, phi_j_sk, phi_m_sk
-        phi_i_sk = np.empty((num_RUs, num_slices, num_UEs), dtype=object)
-        phi_j_sk = np.empty((num_DUs, num_slices, num_UEs), dtype=object)
-        phi_m_sk = np.empty((num_CUs, num_slices, num_UEs), dtype=object)
+        long_phi_i_sk = np.empty((num_RUs, num_slices, num_UEs), dtype=object)
+        long_phi_j_sk = np.empty((num_DUs, num_slices, num_UEs), dtype=object)
+        long_phi_m_sk = np.empty((num_CUs, num_slices, num_UEs), dtype=object)
         for s in range(num_slices):
             for k in range(num_UEs):
                 for i in range(num_RUs):
-                    phi_i_sk[i, s, k] = cp.Variable(boolean=True, name=f"phi_i_sk({i}, {s}, {k})")
+                    long_phi_i_sk[i, s, k] = cp.Variable(boolean=True, name=f"phi_i_sk({i}, {s}, {k})")
                 for j in range(num_DUs):
-                    phi_j_sk[j, s, k] = cp.Variable(boolean=True, name=f"phi_j_sk({j}, {s}, {k})")
+                    long_phi_j_sk[j, s, k] = cp.Variable(boolean=True, name=f"phi_j_sk({j}, {s}, {k})")
                 for m in range(num_CUs):
-                    phi_m_sk[m, s, k] = cp.Variable(boolean=True, name=f"phi_m_sk({m}, {s}, {k})")
+                    long_phi_m_sk[m, s, k] = cp.Variable(boolean=True, name=f"phi_m_sk({m}, {s}, {k})")
 
         # Biến tối ưu cho việc phân bổ
-        pi_sk = cp.Variable((num_slices, num_UEs), boolean=True, name="pi_sk")
+        long_pi_sk = cp.Variable((num_slices, num_UEs), boolean=True, name="pi_sk")
 
         # Danh sách ràng buộc
         constraints = []
 
         # Ràng buộc: Chỉ 1 RB được sử dụng cho 1 UE tại 1 RU
         for b in range(num_RBs):
-            constraints.append(cp.sum([z_ib_sk[i, b, s, k] 
-                                        for s in range(num_slices) 
-                                        for k in range(num_UEs) 
-                                        for i in range(num_RUs)]) <= 1)
+            constraints.append(cp.sum([long_z_ib_sk[i, b, s, k] for s in range(num_slices) for k in range(num_UEs) for i in range(num_RUs)]) <= 1)
 
-        total_R_sk = 0
+        long_total_R_sk = 0
         # Ràng buộc: Đảm bảo QoS (Data rate)
         for s in range(num_slices):
             for k in range(num_UEs):
                 # Tính toán data rate R_sk
-                R_sk = cp.sum([data_rate[i, b, s, k] * z_ib_sk[i, b, s, k] 
+                R_sk = cp.sum([data_rate[i, b, s, k] * long_z_ib_sk[i, b, s, k] 
                                for i in range(num_RUs) 
                                for b in range(num_RBs)])
-                total_R_sk += R_sk
-                constraints.append(R_sk >= R_min * pi_sk[s, k])
+                long_total_R_sk += R_sk
+                constraints.append(R_sk >= R_min * long_pi_sk[s, k])
 
         # Ràng buộc: Tổng công suất phân bổ <= công suất tối đa của RU
         for i in range(num_RUs):
-            total_power = cp.sum([z_ib_sk[i, b, s, k] * P_ib_sk 
+            total_power = cp.sum([long_z_ib_sk[i, b, s, k] * P_ib_sk 
                                   for b in range(num_RBs) 
                                   for k in range(num_UEs) 
                                   for s in range(num_slices)])
@@ -209,14 +206,14 @@ def long_term_2(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, D_j, D_
 
         # Ràng buộc: Tổng tài nguyên của slice sử dụng DU <= tài nguyên có sẵn tại DU
         for j in range(num_DUs):
-            total_du = cp.sum([phi_j_sk[j, s, k] * D_j[k] 
+            total_du = cp.sum([long_phi_j_sk[j, s, k] * D_j[k] 
                                for s in range(num_slices) 
                                for k in range(num_UEs)])
             constraints.append(total_du <= A_j[j])
 
         # Ràng buộc: Tổng tài nguyên của slice sử dụng CU <= tài nguyên có sẵn tại CU
         for m in range(num_CUs):
-            total_cu = cp.sum([phi_m_sk[m, s, k] * D_m[k] 
+            total_cu = cp.sum([long_phi_m_sk[m, s, k] * D_m[k] 
                                for s in range(num_slices) 
                                for k in range(num_UEs)])
             constraints.append(total_cu <= A_m[m])
@@ -224,54 +221,59 @@ def long_term_2(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, D_j, D_
         # Ràng buộc: Đảm bảo ánh xạ toàn bộ RU, DU, CU
         for s in range(num_slices):
             for k in range(num_UEs):
-                constraints.append(cp.sum([phi_i_sk[i, s, k] for i in range(num_RUs)]) == pi_sk[s, k])
-                constraints.append(cp.sum([phi_j_sk[j, s, k] for j in range(num_DUs)]) == pi_sk[s, k])
-                constraints.append(cp.sum([phi_m_sk[m, s, k] for m in range(num_CUs)]) == pi_sk[s, k])
+                constraints.append(cp.sum([long_phi_i_sk[i, s, k] for i in range(num_RUs)]) == long_pi_sk[s, k])
+                constraints.append(cp.sum([long_phi_j_sk[j, s, k] for j in range(num_DUs)]) == long_pi_sk[s, k])
+                constraints.append(cp.sum([long_phi_m_sk[m, s, k] for m in range(num_CUs)]) == long_pi_sk[s, k])
 
         # Ràng buộc: Chuyển đổi z_ib_sk sang phi_i_sk
         for s in range(num_slices):
             for i in range(num_RUs):
                 for k in range(num_UEs):
-                    avg_z = (1 / num_RBs) * cp.sum([z_ib_sk[i, b, s, k] for b in range(num_RBs)])
-                    constraints.append(avg_z <= phi_i_sk[i, s, k])
-                    constraints.append(phi_i_sk[i, s, k] <= avg_z + (1 - epsilon))
+                    avg_z = (1 / num_RBs) * cp.sum([long_z_ib_sk[i, b, s, k] for b in range(num_RBs)])
+                    constraints.append(avg_z <= long_phi_i_sk[i, s, k])
+                    constraints.append(long_phi_i_sk[i, s, k] <= avg_z + (1 - epsilon))
 
         # Ràng buộc: Đảm bảo liên kết từ RU - DU
         for s in range(num_slices):
             for k in range(num_UEs):
                 for i in range(num_RUs):
                     for j in range(num_DUs):
-                        constraints.append(phi_j_sk[j, s, k] <= l_ru_du[i, j] - phi_i_sk[i, s, k] + 1)
+                        constraints.append(long_phi_j_sk[j, s, k] <= l_ru_du[i, j] - long_phi_i_sk[i, s, k] + 1)
 
         # Ràng buộc: Đảm bảo liên kết từ DU - CU
         for s in range(num_slices):
             for k in range(num_UEs):
                 for j in range(num_DUs):
                     for m in range(num_CUs):
-                        constraints.append(phi_m_sk[m, s, k] <= l_du_cu[j, m] - phi_j_sk[j, s, k] + 1)
+                        constraints.append(long_phi_m_sk[m, s, k] <= l_du_cu[j, m] - long_phi_j_sk[j, s, k] + 1)
 
         # Đảm bảo chỉ có các UE ở các slice được ánh xạ
         for s in range(num_slices):
             for k in range(num_UEs):
-                constraints.append(pi_sk[s, k] == pi_sk[s, k] * slice_mapping[s, k])
+                constraints.append(long_pi_sk[s, k] <= slice_mapping[s, k])
 
         # Giải bài toán tối ưu
-        objective = cp.Maximize(gamma * cp.sum(pi_sk) + (1 - gamma) * total_R_sk / R_min)
+        objective = cp.Maximize(gamma * cp.sum(long_pi_sk) + (1 - gamma) * long_total_R_sk / R_min)
         problem = cp.Problem(objective, constraints)
         problem.solve(solver=cp.MOSEK, warm_start=True, mosek_params=solver_settings)
 
-        total_pi_sk = cp.sum(pi_sk).value
+        # Tính tổng long__pi_sk
+        long_objective = objective.value
+        long_total_pi_sk = cp.sum(long_pi_sk).value
+        long_total_z_ib_sk = cp.sum([long_z_ib_sk[i, b, s, k] for i in range(num_RUs) for b in range(num_RBs) for s in range(num_slices) for k in range(num_UEs)]).value
+        long_total_R_sk = None
+        long_total_p_ib_sk = long_total_z_ib_sk * P_ib_sk
 
-        return pi_sk, z_ib_sk, phi_i_sk, phi_j_sk, phi_m_sk, total_R_sk, total_pi_sk, objective
+        return long_pi_sk, long_z_ib_sk, long_phi_i_sk, long_phi_j_sk, long_phi_m_sk, long_total_pi_sk, long_objective, long_total_z_ib_sk, long_total_R_sk, long_total_p_ib_sk
 
     except cp.SolverError:
         print('Solver error: non_feasible')
-        return None, None, None, None, None, None, None, None
+        return None, None, None, None, None, None
     except Exception as e:
         print(f'An error occurred: {e}')
-        return None, None, None, None, None, None, None, None
+        return None, None, None, None, None, None
 
-def short_term_2(num_slices, num_UEs, num_RUs, num_RBs, bandwidth_per_RB, short_gain, R_min, epsilon, arr_long_pi_sk, arr_long_z_ib_sk, arr_long_phi_i_sk, max_tx_power_mwatts):
+def Short_Doraemon(num_slices, num_UEs, num_RUs, num_RBs, bandwidth_per_RB, short_gain, R_min, epsilon, arr_long_pi_sk, arr_long_z_ib_sk, arr_long_phi_i_sk, max_tx_power_mwatts, gamma):
     try:
         # Khởi tạo biến nhị phân short_z_ib_sk: UE k kết nối tới RU i qua RB b tại slice s
         short_z_ib_sk = np.empty((num_RUs, num_RBs, num_slices, num_UEs), dtype=object)
@@ -329,12 +331,21 @@ def short_term_2(num_slices, num_UEs, num_RUs, num_RBs, bandwidth_per_RB, short_
         
 
         # Ràng buộc: Tổng công suất phân bổ <= công suất tối đa của RU
+        total_power = []  # Danh sách lưu công suất từng RU
+
         for i in range(num_RUs):
-            total_power = cp.sum([arr_long_z_ib_sk[i, b, s, k] * short_p_ib_sk[i, b, s, k] 
-                                  for b in range(num_RBs) 
-                                  for k in range(num_UEs) 
-                                  for s in range(num_slices)])
-            constraints.append(total_power <= max_tx_power_mwatts)
+            power_i = cp.sum([arr_long_z_ib_sk[i, b, s, k] * short_p_ib_sk[i, b, s, k] 
+                      for b in range(num_RBs) 
+                      for k in range(num_UEs) 
+                      for s in range(num_slices)])
+            total_power.append(power_i)  # Lưu vào danh sách
+
+            # Thêm từng ràng buộc riêng lẻ
+            constraints.append(power_i <= max_tx_power_mwatts)
+
+            """# Tính tổng công suất nhận được
+            total_received_power = cp.sum(total_power)"""
+
 
         # Ràng buộc: short_z_ib_sk khớp với arr_long_z_ib_sk
         for i in range(num_RUs):
@@ -348,24 +359,31 @@ def short_term_2(num_slices, num_UEs, num_RUs, num_RBs, bandwidth_per_RB, short_
             for k in range(num_UEs):
                 constraints.append(short_pi_sk[s, k] == arr_long_pi_sk[(s, k)])
 
-        # Mục tiêu: Tối đa hóa tổng dữ liệu đạt được
-        short_objective = cp.Maximize(short_total_R_sk / R_min) 
 
+        # Mục tiêu: Tối đa hóa tổng dữ liệu đạt được
+        #objective = cp.Maximize(gamma * cp.sum(short_pi_sk) + (1 - gamma) * short_total_R_sk / R_min)
+        objective = cp.Maximize(short_total_R_sk / R_min)
         # Giải bài toán tối ưu
-        problem = cp.Problem(short_objective, constraints)
+        problem = cp.Problem(objective, constraints)
         problem.solve(solver=cp.MOSEK, warm_start=True)
 
+        # Tính tổng
+        short_objective = objective.value
         short_total_pi_sk = cp.sum(short_pi_sk).value
-        return short_pi_sk, short_total_pi_sk, short_objective
+        short_total_z_ib_sk = cp.sum([short_z_ib_sk[i, b, s, k] for i in range(num_RUs) for b in range(num_RBs) for s in range(num_slices) for k in range(num_UEs)]).value
+        short_total_R_sk = (short_objective - gamma * short_total_pi_sk) / (1 - gamma) * R_min
+        short_total_p_ib_sk = cp.sum([short_z_ib_sk[i, b, s, k] * short_p_ib_sk[i, b, s, k] for i in range(num_RUs) for b in range(num_RBs) for s in range(num_slices) for k in range(num_UEs)]).value
+
+        return arr_long_pi_sk, arr_long_z_ib_sk, None, short_total_R_sk, short_total_pi_sk, short_objective, short_total_z_ib_sk, short_total_R_sk, short_total_p_ib_sk
 
     except cp.SolverError:
         print('Solver error: Non-fea sible solution.')
-        return None, None, None
+        return None, None, None, None, None, None, None, None, None
     except Exception as e:
         print(f'Error: {e}')
-        return None, None, None
+        return None, None, None, None, None, None, None, None, None
 
-def mapping_RU_nearest_UE(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, D_j, D_m, R_min, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, slice_mapping, arr_phi_i_sk, data_rate, P_ib_sk, max_tx_power_mwatts):
+def Nearest_RU(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, D_j, D_m, R_min, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, slice_mapping, arr_phi_i_sk, data_rate, P_ib_sk, max_tx_power_mwatts):
     try:
         # Khởi tạo ma trận nhị phân: nearest_z_ib_sk
         nearest_z_ib_sk = np.empty((num_RUs, num_RBs, num_slices, num_UEs), dtype=object)
@@ -416,9 +434,11 @@ def mapping_RU_nearest_UE(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RB
                 constraints.append(R_sk >= R_min * nearest_pi_sk[s, k])
 
         # Ràng buộc: Tổng công suất phân bổ <= công suất tối đa của RU
+        count_power = 0
         for i in range(num_RUs):
             total_power = cp.sum([nearest_z_ib_sk[i, b, s, k] * P_ib_sk for b in range(num_RBs) for k in range(num_UEs) for s in range(num_slices)])
             constraints.append(total_power <= max_tx_power_mwatts)
+            count_power += total_power
 
         # Ràng buộc: Tổng tài nguyên của slice sử dụng DU <= tài nguyên có sẵn tại DU
         for j in range(num_DUs):
@@ -465,24 +485,28 @@ def mapping_RU_nearest_UE(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RB
                 constraints.append(nearest_pi_sk[s, k] <= slice_mapping[s, k])
 
         # Hàm tối ưu
-        nearest_objective = cp.Maximize(gamma * cp.sum(nearest_pi_sk) + (1 - gamma) * nearest_total_R_sk / R_min)
-        problem = cp.Problem(nearest_objective, constraints)
+        objective = cp.Maximize(gamma * cp.sum(nearest_pi_sk) + (1 - gamma) * nearest_total_R_sk / R_min)
+        problem = cp.Problem(objective, constraints)
         problem.solve(solver=cp.MOSEK, warm_start=True, mosek_params=solver_settings)   
 
         # Tính tổng nearest_pi_sk
+        nearest_objective = objective.value
         nearest_total_pi_sk = cp.sum(nearest_pi_sk).value
+        nearest_total_z_ib_sk = cp.sum([nearest_z_ib_sk[i, b, s, k] for i in range(num_RUs) for b in range(num_RBs) for s in range(num_slices) for k in range(num_UEs)]).value
+        nearest_total_R_sk = (nearest_objective - gamma * nearest_total_pi_sk) / (1 - gamma) * R_min
+        nearest_total_p_ib_sk = nearest_total_z_ib_sk * P_ib_sk
 
-        return nearest_pi_sk, nearest_z_ib_sk, nearest_phi_i_sk, nearest_phi_j_sk, nearest_phi_m_sk, nearest_total_R_sk, nearest_total_pi_sk, nearest_objective
+        return nearest_pi_sk, nearest_z_ib_sk, nearest_phi_i_sk, nearest_phi_j_sk, nearest_phi_m_sk, nearest_total_R_sk, nearest_total_pi_sk, nearest_objective, nearest_total_z_ib_sk, nearest_total_R_sk, nearest_total_p_ib_sk
+
 
     except cp.SolverError:
         print('Solver error: non_feasible')
-        return None, None, None, None, None, None, None, None
+        return None, None, None, None, None, None, None, None, None, None
     except Exception as e:
         print(f'An error occurred: {e}')
-        return None, None, None, None, None, None, None, None
+        return None, None, None, None, None, None, None, None, None, None
 
-
-def mapping_RU_random_UE(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, D_j, D_m, R_min, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, slice_mapping, arr_phi_i_sk, data_rate, P_ib_sk, max_tx_power_mwatts):
+def Random_RU(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, D_j, D_m, R_min, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, slice_mapping, arr_phi_i_sk, data_rate, P_ib_sk, max_tx_power_mwatts):
     try:
         # Khởi tạo ma trận nhị phân: random_z_ib_sk
         random_z_ib_sk = np.empty((num_RUs, num_RBs, num_slices, num_UEs), dtype=object)
@@ -582,18 +606,126 @@ def mapping_RU_random_UE(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs
                 constraints.append(random_pi_sk[s, k] <= slice_mapping[s, k])
 
         # Hàm tối ưu
-        random_objective = cp.Maximize(gamma * cp.sum(random_pi_sk) + (1 - gamma) * random_total_R_sk / R_min)
-        problem = cp.Problem(random_objective, constraints)
+        objective = cp.Maximize(gamma * cp.sum(random_pi_sk) + (1 - gamma) * random_total_R_sk / R_min)
+        problem = cp.Problem(objective, constraints)
         problem.solve(solver=cp.MOSEK, warm_start=True, mosek_params=solver_settings)   
 
-        # Tính tổng random_pi_sk
-        random_total_pi_sk = cp.sum(random_pi_sk).value
 
-        return random_pi_sk, random_z_ib_sk, random_phi_i_sk, random_phi_j_sk, random_phi_m_sk, random_total_R_sk, random_total_pi_sk, random_objective
+        # Tính tổng random_pi_sk
+        random_objective = objective.value
+        random_total_pi_sk = cp.sum(random_pi_sk).value
+        random_total_z_ib_sk = cp.sum([random_z_ib_sk[i, b, s, k] for i in range(num_RUs) for b in range(num_RBs) for s in range(num_slices) for k in range(num_UEs)]).value
+        random_total_R_sk = (random_objective - gamma * random_total_pi_sk)/(1 - gamma) * R_min
+        random_total_p_ib_sk = random_total_z_ib_sk * P_ib_sk
+
+        return random_pi_sk, random_z_ib_sk, random_phi_i_sk, random_phi_j_sk, random_phi_m_sk, random_total_R_sk, random_total_pi_sk, random_objective, random_total_z_ib_sk, random_total_R_sk, random_total_p_ib_sk
 
     except cp.SolverError:
         print('Solver error: non_feasible')
-        return None, None, None, None, None, None, None, None
+        return None, None, None, None, None, None, None, None, None, None, None
     except Exception as e:
         print(f'An error occurred: {e}')
-        return None, None, None, None, None, None, None, None
+        return None, None, None, None, None, None, None, None, None, None, None
+
+
+
+def Long_Doraemon_2(num_slices, num_UEs, num_RUs, num_DUs, num_CUs, num_RBs, D_j, D_m, R_min, A_j, A_m, l_ru_du, l_du_cu, epsilon, gamma, slice_mapping, data_rate, P_ib_sk, max_tx_power_mwatts):
+    try:
+        # Khởi tạo ma trận nhị phân: z_ib_sk
+        long_z_ib_sk = np.empty((num_RUs, num_RBs, num_slices, num_UEs), dtype=object)
+        for i in range(num_RUs):
+            for b in range(num_RBs):
+                for s in range(num_slices):
+                    for k in range(num_UEs):
+                        long_z_ib_sk[i, b, s, k] = cp.Variable(boolean=True)
+
+        # Khởi tạo các biến nhị phân: phi_i_sk, phi_j_sk, phi_m_sk
+        long_phi_i_sk = np.empty((num_RUs, num_slices, num_UEs), dtype=object)
+        long_phi_j_sk = np.empty((num_DUs, num_slices, num_UEs), dtype=object)
+        long_phi_m_sk = np.empty((num_CUs, num_slices, num_UEs), dtype=object)
+        
+        for s in range(num_slices):
+            for k in range(num_UEs):
+                for i in range(num_RUs):
+                    long_phi_i_sk[i, s, k] = cp.Variable(boolean=True)
+                for j in range(num_DUs):
+                    long_phi_j_sk[j, s, k] = cp.Variable(boolean=True)
+                for m in range(num_CUs):
+                    long_phi_m_sk[m, s, k] = cp.Variable(boolean=True)
+
+        # Biến tối ưu cho việc phân bổ
+        long_pi_sk = cp.Variable((num_slices, num_UEs), boolean=True)
+
+        # Danh sách ràng buộc
+        constraints = []
+
+        # Ràng buộc: Chỉ 1 RB được sử dụng cho 1 UE tại 1 RU
+        for b in range(num_RBs):
+            constraints.append(cp.sum([long_z_ib_sk[i, b, s, k] for s in range(num_slices) for k in range(num_UEs) for i in range(num_RUs)]) <= 1)
+
+        # Ràng buộc: Đảm bảo QoS (Data rate)
+        for s in range(num_slices):
+            for k in range(num_UEs):
+                R_sk = cp.sum([data_rate[i, b, s, k] * long_z_ib_sk[i, b, s, k] for i in range(num_RUs) for b in range(num_RBs)])
+                constraints.append(R_sk >= R_min * long_pi_sk[s, k])
+
+        # Tổng công suất RU
+        for i in range(num_RUs):
+            total_power = cp.sum([long_z_ib_sk[i, b, s, k] * P_ib_sk for b in range(num_RBs) for k in range(num_UEs) for s in range(num_slices)])
+            constraints.append(total_power <= max_tx_power_mwatts)
+
+        # Ràng buộc tài nguyên DU
+        for j in range(num_DUs):
+            total_du = cp.sum([long_phi_j_sk[j, s, k] * D_j[k] for s in range(num_slices) for k in range(num_UEs)])
+            constraints.append(total_du <= A_j[j])
+
+        # Ràng buộc tài nguyên CU
+        for m in range(num_CUs):
+            total_cu = cp.sum([long_phi_m_sk[m, s, k] * D_m[k] for s in range(num_slices) for k in range(num_UEs)])
+            constraints.append(total_cu <= A_m[m])
+
+        # Ràng buộc ánh xạ
+        for s in range(num_slices):
+            for k in range(num_UEs):
+                constraints.append(cp.sum([long_phi_i_sk[i, s, k] for i in range(num_RUs)]) == long_pi_sk[s, k])
+                constraints.append(cp.sum([long_phi_j_sk[j, s, k] for j in range(num_DUs)]) == long_pi_sk[s, k])
+                constraints.append(cp.sum([long_phi_m_sk[m, s, k] for m in range(num_CUs)]) == long_pi_sk[s, k])
+
+        # Ràng buộc ánh xạ RU -> DU và DU -> CU
+        for s in range(num_slices):
+            for k in range(num_UEs):
+                for i in range(num_RUs):
+                    for j in range(num_DUs):
+                        constraints.append(long_phi_j_sk[j, s, k] <= l_ru_du[i, j] - long_phi_i_sk[i, s, k] + 1)
+                for j in range(num_DUs):
+                    for m in range(num_CUs):
+                        constraints.append(long_phi_m_sk[m, s, k] <= l_du_cu[j, m] - long_phi_j_sk[j, s, k] + 1)
+
+        # Đảm bảo UE được ánh xạ
+        for s in range(num_slices):
+            for k in range(num_UEs):
+                constraints.append(long_pi_sk[s, k] <= slice_mapping[s, k])
+
+        # Giải bài toán tối ưu
+        objective = cp.Maximize(cp.sum(long_pi_sk))
+        problem = cp.Problem(objective, constraints)
+        problem.solve(solver=cp.MOSEK, warm_start=True, mosek_params=solver_settings)
+
+        if problem.status not in [cp.OPTIMAL, cp.OPTIMAL_INACCURATE]:
+            print('Solver error: non-feasible')
+            return None, None, None, None, None, None
+        
+        long_objective = objective.value
+        long_total_pi_sk = long_pi_sk.value
+        long_total_z_ib_sk = np.sum([var.value for var in long_z_ib_sk.flatten()])
+        long_total_p_ib_sk = long_total_z_ib_sk * P_ib_sk
+
+        return long_pi_sk, long_z_ib_sk, long_phi_i_sk, long_phi_j_sk, long_phi_m_sk, long_total_pi_sk, long_objective, long_total_z_ib_sk, long_total_p_ib_sk
+
+    except Exception as e:
+        print(f'An error occurred: {e}')
+        return None, None, None, None, None, None
+
+
+
+

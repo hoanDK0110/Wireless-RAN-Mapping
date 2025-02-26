@@ -2,16 +2,17 @@ import numpy as np
 import os
 
 def extract_optimization_results(long_pi_sk, long_z_ib_sk, long_phi_i_sk):
-    def extract_values(array, dtype):
+    def extract_values(array):
         shape = array.shape
-        flat_array = np.array([x.value for x in array.flatten()], dtype=dtype)
+        flat_array = np.array([np.rint(x.value) for x in array.flatten()], dtype=int)  # Làm tròn về 0 hoặc 1
         return flat_array.reshape(shape)
 
-    arr_long_pi_sk = extract_values(long_pi_sk, int)
-    arr_long_z_ib_sk = extract_values(long_z_ib_sk, int)
-    arr_long_phi_i_sk = extract_values(long_phi_i_sk, int)
+    arr_long_pi_sk = extract_values(long_pi_sk)
+    arr_long_z_ib_sk = extract_values(long_z_ib_sk)
+    arr_long_phi_i_sk = extract_values(long_phi_i_sk)
 
     return arr_long_pi_sk, arr_long_z_ib_sk, arr_long_phi_i_sk
+
 
 def generate_new_num_UEs(num_UEs, delta_num_UE):
     # Tính sai số ngẫu nhiên trong khoảng [-delta_num_UE, delta_num_UE]
@@ -66,7 +67,7 @@ def save_simulation_parameters(output_folder_time, **parameters):
     
     print(f"Simulation parameters saved to {output_file}")
 
-def save_results(result_prefix, execution_time, total_pi_sk, objective, output_folder):
+def save_results(result_prefix, execution_time, total_pi_sk, total_R_sk, total_z_ib_sk, total_p_ib_sk, objective, output_folder):
     # Tạo thư mục chứa kết quả cho thuật toán
     result_folder = os.path.join(output_folder, result_prefix)
     os.makedirs(result_folder, exist_ok=True)
@@ -74,6 +75,9 @@ def save_results(result_prefix, execution_time, total_pi_sk, objective, output_f
     # Lưu kết quả vào các file
     time_file = os.path.join(result_folder, "times.txt")
     pi_sk_file = os.path.join(result_folder, "pi_sk.txt")
+    R_sk_file = os.path.join(result_folder, "R_sk.txt")
+    z_ib_sk_file = os.path.join(result_folder, "z_ib_sk.txt")
+    p_ib_sk_file = os.path.join(result_folder, "p_ib_sk.txt")
     objective_file = os.path.join(result_folder, "objective.txt")
 
     # Append kết quả vào các file
@@ -81,10 +85,14 @@ def save_results(result_prefix, execution_time, total_pi_sk, objective, output_f
         f.write(f"{execution_time:.4f}\n")
     with open(pi_sk_file, "a") as f:
         f.write(f"{total_pi_sk}\n")
+    with open(R_sk_file, "a") as f:
+        f.write(f"{total_R_sk}\n")
+    with open(z_ib_sk_file, "a") as f:
+        f.write(f"{total_z_ib_sk}\n")
+    with open(p_ib_sk_file, "a") as f:
+        f.write(f"{total_p_ib_sk}\n")
     with open(objective_file, "a") as f:
-        f.write(f"{objective.value}\n")
-
-    #print(f"Results saved for {result_prefix} in {result_folder}.")
+        f.write(f"{objective}\n")
 
 
 def convert_to_array(num_RUs, num_slices, num_UEs, long_phi_i_sk):
